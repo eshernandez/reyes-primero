@@ -38,6 +38,7 @@ Route::prefix('titular')->name('titular.')->group(function (): void {
         Route::put('data', \App\Http\Controllers\Titular\DataController::class)->name('data.update');
         Route::get('file', \App\Http\Controllers\Titular\FileController::class)->name('file');
         Route::post('consents', \App\Http\Controllers\Titular\ConsentController::class)->name('consents.store');
+        Route::post('notes/{noteId}/complete', \App\Http\Controllers\Titular\NoteCompletionController::class)->name('notes.complete');
     });
 });
 

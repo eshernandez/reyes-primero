@@ -22,7 +22,7 @@ class UpdateTitularRequest extends FormRequest
             'nombre' => ['required', 'string', 'max:255'],
             'project_id' => ['required', 'integer', 'exists:projects,id'],
             'folder_id' => ['required', 'integer', 'exists:folders,id'],
-            'status' => ['nullable', 'string', 'in:en_proceso,aceptado,rechazado,devuelto'],
+            'status' => ['nullable', 'string', 'in:en_proceso,aceptado,rechazado,devuelto,revision'],
             'is_active' => ['boolean'],
         ];
     }

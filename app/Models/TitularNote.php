@@ -16,7 +16,18 @@ class TitularNote extends Model
         'titular_id',
         'user_id',
         'body',
+        'completed_at',
     ];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'completed_at' => 'datetime',
+        ];
+    }
 
     /**
      * @return BelongsTo<Titular, $this>

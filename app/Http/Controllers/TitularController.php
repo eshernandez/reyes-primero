@@ -113,6 +113,7 @@ class TitularController extends Controller
                 Titular::STATUS_ACEPTADO,
                 Titular::STATUS_RECHAZADO,
                 Titular::STATUS_DEVUELTO,
+                Titular::STATUS_REVISION,
             ])],
         ]);
 

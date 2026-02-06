@@ -36,11 +36,14 @@ class TitularDataService
         return $rules;
     }
 
+    /**
+     * Completion is 100% when all fields (required and optional) have a value.
+     */
     public function calculateCompletionPercentage(Titular $titular): int
     {
         $fields = $titular->folder->getFieldsArray();
         $data = $titular->data ?? [];
-        $required = 0;
+        $total = 0;
         $filled = 0;
 
         foreach ($fields as $field) {
@@ -51,22 +54,19 @@ class TitularDataService
             if (! $name) {
                 continue;
             }
-            $isRequired = ($field['required'] ?? false) || in_array('required', $field['validation'] ?? [], true);
-            if ($isRequired) {
-                $required++;
-                $value = $data[$name] ?? null;
-                $hasValue = $value !== null && $value !== '';
-                if ($hasValue) {
-                    $filled++;
-                }
+            $total++;
+            $value = $data[$name] ?? null;
+            $hasValue = $value !== null && $value !== '';
+            if ($hasValue) {
+                $filled++;
             }
         }
 
-        if ($required === 0) {
+        if ($total === 0) {
             return 100;
         }
 
-        return (int) round(($filled / $required) * 100);
+        return (int) round(($filled / $total) * 100);
     }
 
     /**

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Titular;
 
 use App\Http\Controllers\Controller;
 use App\Models\Titular;
+use App\Services\TitularDataService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,11 +16,24 @@ class DashboardController extends Controller
     {
         /** @var Titular $titular */
         $titular = auth()->guard('titular')->user();
-        $titular->load(['folder', 'project']);
+        $titular->load(['folder', 'project', 'notes' => fn ($q) => $q->with('author:id,name')->latest()]);
+
+        $completionPercentage = (new TitularDataService)->calculateCompletionPercentage($titular);
+        if ($titular->completion_percentage !== $completionPercentage) {
+            $titular->update(['completion_percentage' => $completionPercentage]);
+        }
 
         $folder = $titular->folder;
         $sections = $folder->getSections();
         $consentsRequired = $folder->consents()->where('is_active', true)->orderByPivot('order')->get();
+
+        $notes = $titular->notes->map(fn ($n) => [
+            'id' => $n->id,
+            'body' => $n->body,
+            'created_at' => $n->created_at->toIso8601String(),
+            'completed_at' => $n->completed_at?->toIso8601String(),
+            'author' => $n->author ? ['id' => $n->author->id, 'name' => $n->author->name] : ['id' => 0, 'name' => 'Administrador'],
+        ])->all();
 
         return Inertia::render('titular/dashboard', [
             'titular' => [
@@ -29,6 +43,7 @@ class DashboardController extends Controller
                 'completion_percentage' => $titular->completion_percentage,
                 'folder_version' => $titular->folder_version,
             ],
+            'notes' => $notes,
             'folder' => [
                 'id' => $folder->id,
                 'name' => $folder->name,

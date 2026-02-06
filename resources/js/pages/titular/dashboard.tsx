@@ -1,5 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useCallback, useEffect, useState } from 'react';
+import { MessageSquare } from 'lucide-react';
 import AppLogoIcon from '@/components/app-logo-icon';
 import { useAppearance } from '@/hooks/use-appearance';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,17 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from '@/components/ui/sheet';
+import { Checkbox } from '@/components/ui/checkbox';
 import { DynamicFormField, type FieldDef } from '@/components/dynamic-form-field';
+import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 
 type ConsentRequired = { id: number; title: string; content: string; version: string };
@@ -20,12 +31,21 @@ type ConsentAccepted = { consent_id: number; version?: string };
 
 type FolderSection = { name: string; order: number; fields: FieldDef[] };
 
+type Note = {
+    id: number;
+    body: string;
+    created_at: string | null;
+    completed_at: string | null;
+    author: { id: number; name: string };
+};
+
 type Props = {
     titular: { id: number; nombre: string; data: Record<string, unknown>; completion_percentage: number; folder_version: string };
     folder: { id: number; name: string; version: string; sections: FolderSection[] };
     project: { id: number; title: string };
     consentsRequired: ConsentRequired[];
     consentsAccepted: ConsentAccepted[];
+    notes?: Note[];
 };
 
 function allConsentsAccepted(required: ConsentRequired[], accepted: ConsentAccepted[]): boolean {
@@ -40,12 +60,17 @@ export default function TitularDashboard({
     project,
     consentsRequired,
     consentsAccepted,
+    notes = [],
 }: Props) {
     const { updateAppearance } = useAppearance();
     useEffect(() => {
         updateAppearance('light');
     }, [updateAppearance]);
 
+    const [notesOpen, setNotesOpen] = useState(false);
+    const [notesState, setNotesState] = useState<Note[]>(notes);
+    const [completionPercentage, setCompletionPercentage] = useState(titular.completion_percentage);
+    const [completingNoteId, setCompletingNoteId] = useState<number | null>(null);
     const [formData, setFormData] = useState<Record<string, string | number>>(() => ({
         ...(titular.data as Record<string, string | number>),
     }));
@@ -55,9 +80,41 @@ export default function TitularDashboard({
     const [consentChecked, setConsentChecked] = useState<Record<number, boolean>>({});
     const [consentSubmitting, setConsentSubmitting] = useState(false);
 
+    useEffect(() => {
+        setNotesState(notes);
+    }, [notes]);
+    useEffect(() => {
+        setCompletionPercentage(titular.completion_percentage);
+    }, [titular.completion_percentage]);
+
     const mustAcceptConsents = consentsRequired.length > 0 && !allConsentsAccepted(consentsRequired, consentsAccepted);
 
     const sections = folder.sections ?? [{ name: 'Datos', order: 0, fields: [] }];
+
+    const handleCompleteNote = useCallback(async (noteId: number) => {
+        setCompletingNoteId(noteId);
+        try {
+            const res = await fetch(`/titular/notes/${noteId}/complete`, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-XSRF-TOKEN': getCsrfToken(),
+                },
+                credentials: 'include',
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok) {
+                setNotesState((prev) =>
+                    prev.map((n) =>
+                        n.id === noteId ? { ...n, completed_at: data.completed_at ?? null } : n,
+                    ),
+                );
+            }
+        } finally {
+            setCompletingNoteId(null);
+        }
+    }, []);
 
     const getCsrfToken = () => {
         const match = document.cookie.match(/XSRF-TOKEN=([^;]+)/);
@@ -106,6 +163,9 @@ export default function TitularDashboard({
             }
             setSaveStatus('ok');
             setPendingFiles({});
+            if (typeof data.completion_percentage === 'number') {
+                setCompletionPercentage(data.completion_percentage);
+            }
             router.reload({ only: ['titular'] });
             setTimeout(() => setSaveStatus('idle'), 2000);
         } catch {
@@ -212,10 +272,10 @@ export default function TitularDashboard({
                         <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
                             <div
                                 className="h-full bg-primary transition-all duration-300"
-                                style={{ width: `${titular.completion_percentage}%` }}
+                                style={{ width: `${completionPercentage}%` }}
                             />
                         </div>
-                        <p className="mt-2 text-sm text-muted-foreground">{titular.completion_percentage}% completado</p>
+                        <p className="mt-2 text-sm text-muted-foreground">{completionPercentage}% completado</p>
                     </CardContent>
                 </Card>
 
@@ -272,6 +332,75 @@ export default function TitularDashboard({
                     </CardContent>
                 </Card>
             </main>
+
+            {/* Notas del administrador: icono flotante */}
+            <Sheet open={notesOpen} onOpenChange={setNotesOpen}>
+                <SheetTrigger asChild>
+                    <Button
+                        size="icon"
+                        variant="default"
+                        className="fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full shadow-lg"
+                        aria-label="Ver observaciones del administrador"
+                    >
+                        <MessageSquare className="size-6" />
+                        {notesState.length > 0 && (
+                            <span className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-xs font-medium text-destructive-foreground">
+                                {notesState.length}
+                            </span>
+                        )}
+                    </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
+                    <SheetHeader>
+                        <SheetTitle>Observaciones del administrador</SheetTitle>
+                        <SheetDescription>
+                            Comentarios o correcciones sobre sus documentos. Revise y actualice su información según se indique.
+                        </SheetDescription>
+                    </SheetHeader>
+                    <div className="flex-1 overflow-y-auto px-1 py-4">
+                        {notesState.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No hay observaciones por ahora.</p>
+                        ) : (
+                            <ul className="space-y-3">
+                                {notesState.map((note) => (
+                                    <li
+                                        key={note.id}
+                                        className={`rounded-lg border p-3 text-sm ${note.completed_at ? 'bg-muted/30 opacity-90' : 'bg-muted/40'}`}
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <div className="flex shrink-0 items-center pt-0.5">
+                                                <Checkbox
+                                                    id={`note-${note.id}`}
+                                                    checked={Boolean(note.completed_at)}
+                                                    disabled={completingNoteId === note.id}
+                                                    onCheckedChange={() => handleCompleteNote(note.id)}
+                                                />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <Label
+                                                    htmlFor={`note-${note.id}`}
+                                                    className="cursor-pointer text-xs font-normal text-muted-foreground"
+                                                >
+                                                    Marcar como atendida
+                                                </Label>
+                                                <p className={`mt-1 whitespace-pre-wrap ${note.completed_at ? 'line-through text-muted-foreground' : ''}`}>
+                                                    {note.body}
+                                                </p>
+                                                <p className="mt-2 text-xs text-muted-foreground">
+                                                    {note.author.name} · {note.created_at ? new Date(note.created_at).toLocaleString() : ''}
+                                                    {note.completed_at != null ? (
+                                                        <> · Atendida {new Date(note.completed_at).toLocaleString()}</>
+                                                    ) : null}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                </SheetContent>
+            </Sheet>
         </div>
     );
 }

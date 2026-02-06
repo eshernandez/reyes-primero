@@ -24,6 +24,8 @@ class Titular extends Model implements AuthenticatableContract
 
     public const STATUS_DEVUELTO = 'devuelto';
 
+    public const STATUS_REVISION = 'revision';
+
     /**
      * @var list<string>
      */
@@ -121,6 +123,7 @@ class Titular extends Model implements AuthenticatableContract
             self::STATUS_ACEPTADO => 'Aceptado',
             self::STATUS_RECHAZADO => 'Rechazado',
             self::STATUS_DEVUELTO => 'Devuelto',
+            self::STATUS_REVISION => 'En revisión',
         ];
     }
 }

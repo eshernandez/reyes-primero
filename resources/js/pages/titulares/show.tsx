@@ -73,6 +73,7 @@ const statusVariant: Record<string, 'default' | 'secondary' | 'destructive' | 'o
     aceptado: 'default',
     rechazado: 'destructive',
     devuelto: 'outline',
+    revision: 'secondary',
 };
 
 export default function TitularShow({ titular, sections, statusLabels = {} }: Props) {

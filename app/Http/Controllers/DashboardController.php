@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Folder;
 use App\Models\Project;
 use App\Models\Titular;
 use Illuminate\Http\Request;
@@ -18,14 +19,17 @@ class DashboardController extends Controller
             $projectIds = $user->assignedProjects()->pluck('projects.id');
             $projectsCount = Project::query()->whereIn('id', $projectIds)->count();
             $titularesCount = Titular::query()->whereIn('project_id', $projectIds)->count();
+            $foldersCount = Folder::query()->count();
         } else {
             $projectsCount = Project::query()->count();
             $titularesCount = Titular::query()->count();
+            $foldersCount = Folder::query()->count();
         }
 
         return Inertia::render('dashboard', [
             'stats' => [
                 'projects_count' => $projectsCount,
+                'folders_count' => $foldersCount,
                 'titulares_count' => $titularesCount,
             ],
         ]);
