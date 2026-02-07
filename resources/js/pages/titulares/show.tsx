@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { MessageSquare, Send } from 'lucide-react';
+import { FileText, Key, Link2, MessageSquare, Send } from 'lucide-react';
 import { useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,15 @@ type Note = {
     author: { id: number; name: string };
 };
 
+type Aporte = {
+    id: number;
+    valor: string;
+    estado: string;
+    created_at: string;
+    plan: { id: number; nombre: string } | null;
+    approved_by_user: { id: number; name: string } | null;
+};
+
 type Titular = {
     id: number;
     nombre: string;
@@ -50,12 +59,15 @@ type Titular = {
     folder: { id: number; name: string; version: string };
     creator?: { id: number; name: string } | null;
     notes?: Note[];
+    aportes?: Aporte[];
 };
 
 type Props = {
     titular: Titular;
     sections: Section[];
     statusLabels?: Record<string, string>;
+    aportes?: Aporte[];
+    aporteEstadoLabels?: Record<string, string>;
 };
 
 const breadcrumbs = (titular: Titular): BreadcrumbItem[] => [
@@ -76,7 +88,7 @@ const statusVariant: Record<string, 'default' | 'secondary' | 'destructive' | 'o
     revision: 'secondary',
 };
 
-export default function TitularShow({ titular, sections, statusLabels = {} }: Props) {
+export default function TitularShow({ titular, sections, statusLabels = {}, aportes = [], aporteEstadoLabels = {} }: Props) {
     const accessUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/titular/access/${titular.unique_url}`;
     const data = titular.data ?? {};
     const notes = titular.notes ?? [];
@@ -139,6 +151,9 @@ export default function TitularShow({ titular, sections, statusLabels = {} }: Pr
                                 </span>
                             )}
                         </Button>
+                        <Button variant="outline" asChild>
+                            <Link href={`/titulares/${titular.id}/data`}>Editar datos de carpeta</Link>
+                        </Button>
                         <Button asChild>
                             <Link href={edit.url(titular.id)}>Editar</Link>
                         </Button>
@@ -151,13 +166,44 @@ export default function TitularShow({ titular, sections, statusLabels = {} }: Pr
                         <CardDescription>Código y URL para que el titular ingrese a su carpeta</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div>
-                            <p className="text-sm font-medium text-muted-foreground">Código de 6 dígitos</p>
-                            <p className="mt-1 font-mono text-lg">{titular.access_code}</p>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                            <div>
+                                <p className="text-sm font-medium text-muted-foreground">Código de 6 dígitos (contraseña)</p>
+                                <p className="mt-1 font-mono text-lg">{titular.access_code}</p>
+                            </div>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    if (window.confirm('¿Generar un nuevo código? El actual dejará de funcionar.')) {
+                                        router.post(`/titulares/${titular.id}/regenerate-code`);
+                                    }
+                                }}
+                            >
+                                <Key className="mr-2 size-4" />
+                                Generar nuevo código
+                            </Button>
                         </div>
-                        <div>
-                            <p className="text-sm font-medium text-muted-foreground">URL de acceso directo</p>
-                            <p className="mt-1 break-all font-mono text-sm">{accessUrl}</p>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-muted-foreground">URL de acceso directo</p>
+                                <p className="mt-1 break-all font-mono text-sm">{accessUrl}</p>
+                            </div>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="shrink-0"
+                                onClick={() => {
+                                    if (window.confirm('¿Generar una nueva URL? La actual dejará de funcionar.')) {
+                                        router.post(`/titulares/${titular.id}/regenerate-url`);
+                                    }
+                                }}
+                            >
+                                <Link2 className="mr-2 size-4" />
+                                Generar nueva URL
+                            </Button>
                         </div>
                     </CardContent>
                 </Card>
@@ -196,6 +242,66 @@ export default function TitularShow({ titular, sections, statusLabels = {} }: Pr
                             <p className="text-sm text-muted-foreground">
                                 Creado por: {titular.creator.name}
                             </p>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Aportes del titular</CardTitle>
+                        <CardDescription>
+                            Aportes registrados por el titular. Puede ver el detalle y aprobar o rechazar desde cada fila.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {!aportes || aportes.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">Este titular aún no tiene aportes registrados.</p>
+                        ) : (
+                            <div className="rounded-md border">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b bg-muted/50">
+                                            <th className="p-3 text-left font-medium">Valor</th>
+                                            <th className="p-3 text-left font-medium">Estado</th>
+                                            <th className="p-3 text-left font-medium">Plan</th>
+                                            <th className="p-3 text-left font-medium">Fecha</th>
+                                            <th className="p-3 text-right font-medium">Acción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {aportes.map((aporte) => (
+                                            <tr key={aporte.id} className="border-b last:border-0">
+                                                <td className="p-3">{aporte.valor}</td>
+                                                <td className="p-3">
+                                                    <Badge
+                                                        variant={
+                                                            aporte.estado === 'aprobado'
+                                                                ? 'default'
+                                                                : aporte.estado === 'rechazado'
+                                                                  ? 'destructive'
+                                                                  : 'secondary'
+                                                        }
+                                                    >
+                                                        {aporteEstadoLabels[aporte.estado] ?? aporte.estado}
+                                                    </Badge>
+                                                </td>
+                                                <td className="p-3">{aporte.plan?.nombre ?? '—'}</td>
+                                                <td className="p-3 text-muted-foreground">
+                                                    {new Date(aporte.created_at).toLocaleDateString()}
+                                                </td>
+                                                <td className="p-3 text-right">
+                                                    <Button variant="ghost" size="sm" asChild>
+                                                        <Link href={`/aportes/${aporte.id}`}>
+                                                            <FileText className="mr-1 size-4" />
+                                                            Ver / Gestionar
+                                                        </Link>
+                                                    </Button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         )}
                     </CardContent>
                 </Card>

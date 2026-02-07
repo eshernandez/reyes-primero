@@ -14,6 +14,9 @@ export type FieldDef = {
     label: string;
     type: string;
     required?: boolean;
+    filled_by_admin?: boolean;
+    editable_by_both?: boolean;
+    visible_only_for_admin?: boolean;
     options?: string[];
     help_text?: string | null;
     order?: number;
@@ -24,6 +27,9 @@ type Props = {
     value: string | number | undefined;
     onChange: (value: string | number | File | null) => void;
     error?: string;
+    disabled?: boolean;
+    /** Leyenda cuando el campo es solo lectura (ej. "Campo no editable. Lo diligencia el administrador.") */
+    readOnlyLegend?: string;
 };
 
 type FileFieldProps = {
@@ -31,6 +37,8 @@ type FileFieldProps = {
     value: string | undefined;
     onChange: (value: string | File | null) => void;
     error?: string;
+    disabled?: boolean;
+    readOnlyLegend?: string;
     fileDownloadUrl?: (path: string) => string;
 };
 
@@ -39,7 +47,7 @@ function normalizeValue(v: string | number | undefined): string {
     return String(v);
 }
 
-function FileFormField({ field, value, onChange, error, fileDownloadUrl }: FileFieldProps) {
+function FileFormField({ field, value, onChange, error, disabled = false, readOnlyLegend, fileDownloadUrl }: FileFieldProps) {
     const id = `field-${field.field_name}`;
     const currentPath = value ?? '';
     const href = currentPath && fileDownloadUrl ? fileDownloadUrl(currentPath) : null;
@@ -60,6 +68,7 @@ function FileFormField({ field, value, onChange, error, fileDownloadUrl }: FileF
                         onChange(file ?? null);
                     }}
                     required={field.required && !currentPath}
+                    disabled={disabled}
                     className="cursor-pointer"
                 />
                 {href && (
@@ -80,11 +89,14 @@ function FileFormField({ field, value, onChange, error, fileDownloadUrl }: FileF
                 <p className="text-xs text-muted-foreground">{field.help_text}</p>
             )}
             <InputError message={error} />
+            {readOnlyLegend && (
+                <p className="text-xs text-muted-foreground italic">{readOnlyLegend}</p>
+            )}
         </div>
     );
 }
 
-export function DynamicFormField({ field, value, onChange, error }: Props) {
+export function DynamicFormField({ field, value, onChange, error, disabled = false, readOnlyLegend }: Props) {
     const id = `field-${field.field_name ?? 'section'}`;
     const displayValue = normalizeValue(value);
 
@@ -108,6 +120,7 @@ export function DynamicFormField({ field, value, onChange, error }: Props) {
                     value={displayValue}
                     onChange={(e) => onChange(e.target.value)}
                     required={field.required}
+                    disabled={disabled}
                     className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     rows={3}
                 />
@@ -115,6 +128,9 @@ export function DynamicFormField({ field, value, onChange, error }: Props) {
                     <p className="text-xs text-muted-foreground">{field.help_text}</p>
                 )}
                 <InputError message={error} />
+                {readOnlyLegend && (
+                    <p className="text-xs text-muted-foreground italic">{readOnlyLegend}</p>
+                )}
             </div>
         );
     }
@@ -130,6 +146,7 @@ export function DynamicFormField({ field, value, onChange, error }: Props) {
                     value={displayValue}
                     onValueChange={(v) => onChange(v)}
                     required={field.required}
+                    disabled={disabled}
                 >
                     <SelectTrigger id={id}>
                         <SelectValue placeholder="Seleccione..." />
@@ -146,6 +163,9 @@ export function DynamicFormField({ field, value, onChange, error }: Props) {
                     <p className="text-xs text-muted-foreground">{field.help_text}</p>
                 )}
                 <InputError message={error} />
+                {readOnlyLegend && (
+                    <p className="text-xs text-muted-foreground italic">{readOnlyLegend}</p>
+                )}
             </div>
         );
     }
@@ -164,11 +184,15 @@ export function DynamicFormField({ field, value, onChange, error }: Props) {
                     value={displayValue}
                     onChange={(e) => onChange(e.target.value)}
                     required={field.required}
+                    disabled={disabled}
                 />
                 {field.help_text && (
                     <p className="text-xs text-muted-foreground">{field.help_text}</p>
                 )}
                 <InputError message={error} />
+                {readOnlyLegend && (
+                    <p className="text-xs text-muted-foreground italic">{readOnlyLegend}</p>
+                )}
             </div>
         );
     }
@@ -186,11 +210,15 @@ export function DynamicFormField({ field, value, onChange, error }: Props) {
                     value={displayValue}
                     onChange={(e) => onChange(e.target.value)}
                     required={field.required}
+                    disabled={disabled}
                 />
                 {field.help_text && (
                     <p className="text-xs text-muted-foreground">{field.help_text}</p>
                 )}
                 <InputError message={error} />
+                {readOnlyLegend && (
+                    <p className="text-xs text-muted-foreground italic">{readOnlyLegend}</p>
+                )}
             </div>
         );
     }
@@ -202,6 +230,8 @@ export function DynamicFormField({ field, value, onChange, error }: Props) {
                 value={typeof value === 'string' ? value : undefined}
                 onChange={onChange}
                 error={error}
+                disabled={disabled}
+                readOnlyLegend={readOnlyLegend}
                 fileDownloadUrl={(path) => `/titular/file?path=${encodeURIComponent(path)}`}
             />
         );
@@ -219,11 +249,15 @@ export function DynamicFormField({ field, value, onChange, error }: Props) {
                 value={displayValue}
                 onChange={(e) => onChange(e.target.value)}
                 required={field.required}
+                disabled={disabled}
             />
             {field.help_text && (
                 <p className="text-xs text-muted-foreground">{field.help_text}</p>
             )}
             <InputError message={error} />
+            {readOnlyLegend && (
+                <p className="text-xs text-muted-foreground italic">{readOnlyLegend}</p>
+            )}
         </div>
     );
 }

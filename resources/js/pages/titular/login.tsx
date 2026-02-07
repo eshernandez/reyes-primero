@@ -26,8 +26,8 @@ export default function TitularLogin() {
                             href="/"
                             className="flex flex-col items-center gap-2 font-medium"
                         >
-                            <div className="mb-1 flex h-9 w-9 items-center justify-center rounded-md">
-                                <AppLogoIcon className="size-9 fill-current text-[var(--foreground)] dark:text-white" />
+                            <div className="mb-1 flex size-[66px] items-center justify-center rounded-md">
+                                <AppLogoIcon className="size-[66px] object-contain" />
                             </div>
                         </Link>
                         <div className="space-y-2 text-center">

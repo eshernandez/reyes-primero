@@ -35,6 +35,9 @@ export type DesignerField = {
     label: string;
     type: string;
     required: boolean;
+    filled_by_admin: boolean;
+    editable_by_both: boolean;
+    visible_only_for_admin: boolean;
     help_text: string;
     order: number;
     options?: string[];
@@ -76,6 +79,9 @@ export function parseFolderFieldsToDesigner(fields: Record<string, unknown> | nu
                 label: String(f.label ?? 'Campo'),
                 type: String(f.type ?? 'text'),
                 required: Boolean(f.required),
+                filled_by_admin: Boolean(f.filled_by_admin),
+                editable_by_both: Boolean(f.editable_by_both),
+                visible_only_for_admin: Boolean(f.visible_only_for_admin),
                 help_text: String(f.help_text ?? ''),
                 order: Number(f.order ?? fi),
                 options: Array.isArray(f.options) ? f.options.map(String) : undefined,
@@ -96,6 +102,9 @@ export function parseFolderFieldsToDesigner(fields: Record<string, unknown> | nu
                     label: String(f.label ?? 'Campo'),
                     type: String(f.type ?? 'text'),
                     required: Boolean(f.required),
+                    filled_by_admin: Boolean(f.filled_by_admin),
+                    editable_by_both: Boolean(f.editable_by_both),
+                    visible_only_for_admin: Boolean(f.visible_only_for_admin),
                     help_text: String(f.help_text ?? ''),
                     order: Number(f.order ?? i),
                     options: Array.isArray(f.options) ? f.options.map(String) : undefined,
@@ -124,6 +133,9 @@ export function buildFieldsFromDesigner(
                     label: f.label,
                     type: f.type,
                     required: f.required,
+                    filled_by_admin: f.type === 'section' ? false : f.filled_by_admin,
+                    editable_by_both: f.type === 'section' ? false : f.editable_by_both,
+                    visible_only_for_admin: f.type === 'section' ? false : f.visible_only_for_admin,
                     help_text: f.help_text || null,
                     order: f.order,
                 };
@@ -188,6 +200,9 @@ export function FolderFormDesigner({ sections, onChange }: FolderFormDesignerPro
                             label: 'Nuevo campo',
                             type: 'text',
                             required: false,
+                            filled_by_admin: false,
+                            editable_by_both: false,
+                            visible_only_for_admin: false,
                             help_text: '',
                             order,
                         },
@@ -391,16 +406,80 @@ export function FolderFormDesigner({ sections, onChange }: FolderFormDesignerPro
                                                             </Select>
                                                         </div>
                                                         {field.type !== 'section' && (
-                                                            <div className="flex items-center gap-2 pt-6">
-                                                                <Checkbox
-                                                                    id={`req-${field.id}`}
-                                                                    checked={field.required}
-                                                                    onCheckedChange={(c) =>
-                                                                        updateField(section.id, field.id, { required: Boolean(c) })
-                                                                    }
-                                                                />
-                                                                <Label htmlFor={`req-${field.id}`} className="font-normal">Requerido</Label>
-                                                            </div>
+                                                            <>
+                                                                <div className="flex items-center gap-2 pt-6">
+                                                                    <Checkbox
+                                                                        id={`req-${field.id}`}
+                                                                        checked={field.required}
+                                                                        onCheckedChange={(c) =>
+                                                                            updateField(section.id, field.id, { required: Boolean(c) })
+                                                                        }
+                                                                    />
+                                                                    <Label htmlFor={`req-${field.id}`} className="font-normal">Requerido</Label>
+                                                                </div>
+                                                                <div className="space-y-2 pt-1">
+                                                                    <Label className="text-xs text-muted-foreground">Quién puede editar</Label>
+                                                                    <div className="flex flex-wrap gap-3">
+                                                                        <label className="flex items-center gap-2 cursor-pointer">
+                                                                            <input
+                                                                                type="radio"
+                                                                                name={`edit-by-${field.id}`}
+                                                                                checked={!field.filled_by_admin && !field.editable_by_both}
+                                                                                onChange={() =>
+                                                                                    updateField(section.id, field.id, {
+                                                                                        filled_by_admin: false,
+                                                                                        editable_by_both: false,
+                                                                                    })
+                                                                                }
+                                                                                className="size-4"
+                                                                            />
+                                                                            <span className="text-sm">Lo diligencia el titular</span>
+                                                                        </label>
+                                                                        <label className="flex items-center gap-2 cursor-pointer">
+                                                                            <input
+                                                                                type="radio"
+                                                                                name={`edit-by-${field.id}`}
+                                                                                checked={field.filled_by_admin && !field.editable_by_both}
+                                                                                onChange={() =>
+                                                                                    updateField(section.id, field.id, {
+                                                                                        filled_by_admin: true,
+                                                                                        editable_by_both: false,
+                                                                                    })
+                                                                                }
+                                                                                className="size-4"
+                                                                            />
+                                                                            <span className="text-sm">Lo diligencia el administrador</span>
+                                                                        </label>
+                                                                        <label className="flex items-center gap-2 cursor-pointer">
+                                                                            <input
+                                                                                type="radio"
+                                                                                name={`edit-by-${field.id}`}
+                                                                                checked={field.editable_by_both}
+                                                                                onChange={() =>
+                                                                                    updateField(section.id, field.id, {
+                                                                                        filled_by_admin: false,
+                                                                                        editable_by_both: true,
+                                                                                    })
+                                                                                }
+                                                                                className="size-4"
+                                                                            />
+                                                                            <span className="text-sm">Editable por ambos</span>
+                                                                        </label>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex items-center gap-2 pt-2">
+                                                                    <Checkbox
+                                                                        id={`visible-admin-${field.id}`}
+                                                                        checked={field.visible_only_for_admin}
+                                                                        onCheckedChange={(c) =>
+                                                                            updateField(section.id, field.id, { visible_only_for_admin: Boolean(c) })
+                                                                        }
+                                                                    />
+                                                                    <Label htmlFor={`visible-admin-${field.id}`} className="font-normal text-muted-foreground">
+                                                                        Solo visible para administrador
+                                                                    </Label>
+                                                                </div>
+                                                            </>
                                                         )}
                                                     </div>
                                                     {field.type !== 'section' && (

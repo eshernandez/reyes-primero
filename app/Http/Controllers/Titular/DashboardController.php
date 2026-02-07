@@ -12,6 +12,52 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
+    /**
+     * Sections with visible_only_for_admin fields removed (for titular view).
+     *
+     * @param  array<int, array{name: string, order: int, fields: array<int, array<string, mixed>>}>  $sections
+     * @return array<int, array{name: string, order: int, fields: array<int, array<string, mixed>>}>
+     */
+    private static function sectionsForTitular(array $sections): array
+    {
+        $result = [];
+        foreach ($sections as $sec) {
+            $fields = array_filter($sec['fields'] ?? [], function ($field) {
+                return empty($field['visible_only_for_admin']);
+            });
+            $result[] = [
+                'name' => $sec['name'] ?? 'Sección',
+                'order' => (int) ($sec['order'] ?? 0),
+                'fields' => array_values($fields),
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Field names that are visible_only_for_admin (to strip from data sent to titular).
+     *
+     * @param  array<int, array{fields: array<int, array<string, mixed>>}>  $sections
+     * @return list<string>
+     */
+    private static function adminOnlyFieldNames(array $sections): array
+    {
+        $names = [];
+        foreach ($sections as $sec) {
+            foreach ($sec['fields'] ?? [] as $field) {
+                if (! empty($field['visible_only_for_admin'])) {
+                    $name = $field['field_name'] ?? null;
+                    if (is_string($name)) {
+                        $names[] = $name;
+                    }
+                }
+            }
+        }
+
+        return $names;
+    }
+
     public function __invoke(Request $request): Response|RedirectResponse
     {
         /** @var Titular $titular */
@@ -24,7 +70,15 @@ class DashboardController extends Controller
         }
 
         $folder = $titular->folder;
-        $sections = $folder->getSections();
+        $allSections = $folder->getSections();
+        $sections = self::sectionsForTitular($allSections);
+        $adminOnlyKeys = self::adminOnlyFieldNames($allSections);
+        $titularData = $titular->data ?? [];
+        foreach (array_keys($titularData) as $key) {
+            if (in_array($key, $adminOnlyKeys, true)) {
+                unset($titularData[$key]);
+            }
+        }
         $consentsRequired = $folder->consents()->where('is_active', true)->orderByPivot('order')->get();
 
         $notes = $titular->notes->map(fn ($n) => [
@@ -39,7 +93,7 @@ class DashboardController extends Controller
             'titular' => [
                 'id' => $titular->id,
                 'nombre' => $titular->nombre,
-                'data' => $titular->data ?? [],
+                'data' => $titularData,
                 'completion_percentage' => $titular->completion_percentage,
                 'folder_version' => $titular->folder_version,
             ],

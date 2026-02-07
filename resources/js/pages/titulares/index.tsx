@@ -1,14 +1,14 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Pencil, Plus, Trash2, User } from 'lucide-react';
+import { Eye, FileSpreadsheet, Pencil, Plus, Trash2 } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Pagination, type PaginationLink } from '@/components/pagination';
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -36,11 +36,24 @@ type Titular = {
 };
 
 type ProjectOption = { id: number; title: string };
+type FolderOption = { id: number; name: string; version: string };
+
+type Filters = {
+    search?: string;
+    project_id?: string;
+    folder_id?: string;
+    status?: string;
+    completitud?: string;
+    completitud_min?: string;
+    completitud_max?: string;
+    telefono?: string;
+};
 
 type Props = {
-    titulares: { data: Titular[]; links: unknown[]; current_page: number; last_page: number };
+    titulares: { data: Titular[]; links: PaginationLink[]; current_page: number; last_page: number };
     projectsForFilter: ProjectOption[];
-    filters: { search?: string; project_id?: string };
+    foldersForFilter: FolderOption[];
+    filters: Filters;
     statusLabels: Record<string, string>;
 };
 
@@ -49,8 +62,16 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Titulares', href: titularesIndex().url },
 ];
 
-export default function TitularesIndex({ titulares, projectsForFilter, filters, statusLabels }: Props) {
-    const applyFilters = (newFilters: { search?: string; project_id?: string }) => {
+const COMPLETITUD_OPTIONS = [
+    { value: 'all', label: 'Cualquier completitud' },
+    { value: '0-25', label: '0-25%' },
+    { value: '26-50', label: '26-50%' },
+    { value: '51-75', label: '51-75%' },
+    { value: '76-100', label: '76-100%' },
+];
+
+export default function TitularesIndex({ titulares, projectsForFilter, foldersForFilter, filters, statusLabels }: Props) {
+    const applyFilters = (newFilters: Filters) => {
         router.get(titularesIndex().url, newFilters, { preserveState: true });
     };
 
@@ -60,12 +81,20 @@ export default function TitularesIndex({ titulares, projectsForFilter, filters, 
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <h1 className="text-2xl font-semibold">Titulares</h1>
-                    <Button asChild>
-                        <Link href={create().url}>
-                            <Plus className="mr-2 size-4" />
-                            Nuevo titular
-                        </Link>
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button variant="outline" asChild>
+                            <Link href="/titulares/import/create">
+                                <FileSpreadsheet className="mr-2 size-4" />
+                                Importar
+                            </Link>
+                        </Button>
+                        <Button asChild>
+                            <Link href={create().url}>
+                                <Plus className="mr-2 size-4" />
+                                Nuevo titular
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
 
                 <Card>
@@ -77,6 +106,15 @@ export default function TitularesIndex({ titulares, projectsForFilter, filters, 
                                     placeholder="Nombre..."
                                     value={filters.search ?? ''}
                                     onChange={(e) => applyFilters({ ...filters, search: e.target.value || undefined })}
+                                    className="mt-1"
+                                />
+                            </div>
+                            <div className="min-w-[200px]">
+                                <Label className="text-xs">Teléfono</Label>
+                                <Input
+                                    placeholder="Celular..."
+                                    value={filters.telefono ?? ''}
+                                    onChange={(e) => applyFilters({ ...filters, telefono: e.target.value || undefined })}
                                     className="mt-1"
                                 />
                             </div>
@@ -96,6 +134,113 @@ export default function TitularesIndex({ titulares, projectsForFilter, filters, 
                                         {projectsForFilter.map((p) => (
                                             <SelectItem key={p.id} value={String(p.id)}>
                                                 {p.title}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="min-w-[200px]">
+                                <Label className="text-xs">Carpeta</Label>
+                                <Select
+                                    value={filters.folder_id ?? 'all'}
+                                    onValueChange={(v) =>
+                                        applyFilters({ ...filters, folder_id: v === 'all' ? undefined : v })
+                                    }
+                                >
+                                    <SelectTrigger className="mt-1">
+                                        <SelectValue placeholder="Todas" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todas las carpetas</SelectItem>
+                                        {(foldersForFilter ?? []).map((f) => (
+                                            <SelectItem key={f.id} value={String(f.id)}>
+                                                {f.name} (v{f.version})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="min-w-[200px]">
+                                <Label className="text-xs">Completitud (rango)</Label>
+                                <Select
+                                    value={filters.completitud ?? 'all'}
+                                    onValueChange={(v) =>
+                                        applyFilters({
+                                            ...filters,
+                                            completitud: v === 'all' ? undefined : v,
+                                            completitud_min: undefined,
+                                            completitud_max: undefined,
+                                        })
+                                    }
+                                >
+                                    <SelectTrigger className="mt-1">
+                                        <SelectValue placeholder="Cualquier completitud" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {COMPLETITUD_OPTIONS.map((opt) => (
+                                            <SelectItem key={opt.value} value={opt.value}>
+                                                {opt.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="min-w-[100px]">
+                                <Label className="text-xs">Completitud mín. %</Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    placeholder="0"
+                                    value={filters.completitud_min ?? ''}
+                                    onChange={(e) => {
+                                        const v = e.target.value.replace(/\D/g, '');
+                                        const n = v === '' ? undefined : Math.min(100, Math.max(0, parseInt(v, 10) || 0));
+                                        applyFilters({
+                                            ...filters,
+                                            completitud_min: n !== undefined ? String(n) : undefined,
+                                            completitud: n !== undefined && n > 0 ? undefined : filters.completitud,
+                                        });
+                                    }}
+                                    className="mt-1"
+                                />
+                            </div>
+                            <div className="min-w-[100px]">
+                                <Label className="text-xs">Completitud máx. %</Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    placeholder="100"
+                                    value={filters.completitud_max ?? ''}
+                                    onChange={(e) => {
+                                        const v = e.target.value.replace(/\D/g, '');
+                                        const n = v === '' ? undefined : Math.min(100, Math.max(0, parseInt(v, 10) || 0));
+                                        applyFilters({
+                                            ...filters,
+                                            completitud_max: n !== undefined ? String(n) : undefined,
+                                            completitud: n !== undefined && n < 100 ? undefined : filters.completitud,
+                                        });
+                                    }}
+                                    className="mt-1"
+                                />
+                            </div>
+                            <div className="min-w-[200px]">
+                                <Label className="text-xs">Revisión</Label>
+                                <Select
+                                    value={filters.status ?? 'all'}
+                                    onValueChange={(v) =>
+                                        applyFilters({ ...filters, status: v === 'all' ? undefined : v })
+                                    }
+                                >
+                                    <SelectTrigger className="mt-1">
+                                        <SelectValue placeholder="Todos" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todos los estados</SelectItem>
+                                        {Object.entries(statusLabels).map(([value, label]) => (
+                                            <SelectItem key={value} value={value}>
+                                                {label}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -162,38 +307,42 @@ export default function TitularesIndex({ titulares, projectsForFilter, filters, 
                                         </span>
                                     </td>
                                     <td className="p-3">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="size-8">
-                                                    ⋮
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem asChild>
-                                                    <Link href={show.url(t.id)}>
-                                                        <User className="mr-2 size-4" />
-                                                        Ver
-                                                    </Link>
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem asChild>
-                                                    <Link href={edit.url(t.id)}>
-                                                        <Pencil className="mr-2 size-4" />
-                                                        Editar
-                                                    </Link>
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem asChild>
-                                                    <Link
-                                                        href={destroy.url(t.id)}
-                                                        method="delete"
-                                                        as="button"
-                                                        className="w-full text-destructive"
+                                        <div className="flex items-center gap-1">
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="size-8" asChild>
+                                                        <Link href={show.url(t.id)} aria-label="Ver">
+                                                            <Eye className="size-4" />
+                                                        </Link>
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Ver</TooltipContent>
+                                            </Tooltip>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="size-8" asChild>
+                                                        <Link href={edit.url(t.id)} aria-label="Editar">
+                                                            <Pencil className="size-4" />
+                                                        </Link>
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Editar</TooltipContent>
+                                            </Tooltip>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="size-8 text-destructive hover:text-destructive"
+                                                        aria-label="Desactivar"
+                                                        onClick={() => router.delete(destroy.url(t.id))}
                                                     >
-                                                        <Trash2 className="mr-2 size-4" />
-                                                        Desactivar
-                                                    </Link>
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                                        <Trash2 className="size-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Desactivar</TooltipContent>
+                                            </Tooltip>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -210,6 +359,12 @@ export default function TitularesIndex({ titulares, projectsForFilter, filters, 
                             </Button>
                         </CardContent>
                     </Card>
+                )}
+
+                {titulares.last_page > 1 && (
+                    <div className="flex justify-center pt-4">
+                        <Pagination links={titulares.links} />
+                    </div>
                 )}
             </div>
         </AppLayout>

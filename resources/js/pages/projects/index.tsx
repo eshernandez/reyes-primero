@@ -9,6 +9,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Pagination, type PaginationLink } from '@/components/pagination';
 import { dashboard } from '@/routes';
 import { create, destroy, edit, index } from '@/routes/projects';
 import type { BreadcrumbItem } from '@/types';
@@ -26,7 +27,7 @@ type Project = {
 };
 
 type Props = {
-    projects: { data: Project[]; links: unknown[]; current_page: number; last_page: number };
+    projects: { data: Project[]; links: PaginationLink[]; current_page: number; last_page: number };
     filters: { search?: string; status?: string };
 };
 
@@ -121,6 +122,12 @@ export default function ProjectsIndex({ projects }: Props) {
                             </Button>
                         </CardContent>
                     </Card>
+                )}
+
+                {projects.last_page > 1 && (
+                    <div className="flex justify-center pt-4">
+                        <Pagination links={projects.links} />
+                    </div>
                 )}
             </div>
         </AppLayout>

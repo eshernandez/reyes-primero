@@ -50,6 +50,9 @@ class TitularDataService
             if (($field['type'] ?? 'text') === 'section') {
                 continue;
             }
+            if (! empty($field['visible_only_for_admin'])) {
+                continue;
+            }
             $name = $field['field_name'] ?? null;
             if (! $name) {
                 continue;
@@ -107,6 +110,56 @@ class TitularDataService
         }
 
         return $merged;
+    }
+
+    /**
+     * Field names that the admin can edit (diligenciado por administrador, editable por ambos, or solo visible administrador).
+     *
+     * @return list<string>
+     */
+    public function getAdminEditableFieldNames(Titular $titular): array
+    {
+        $fields = $titular->folder->getFieldsArray();
+        $names = [];
+        foreach ($fields as $field) {
+            if (($field['type'] ?? 'text') === 'section') {
+                continue;
+            }
+            $name = $field['field_name'] ?? null;
+            if ($name === null) {
+                continue;
+            }
+            $filledByAdmin = ! empty($field['filled_by_admin']);
+            $editableByBoth = ! empty($field['editable_by_both']);
+            $visibleOnlyForAdmin = ! empty($field['visible_only_for_admin']);
+            if ($filledByAdmin || $editableByBoth || $visibleOnlyForAdmin) {
+                $names[] = $name;
+            }
+        }
+
+        return $names;
+    }
+
+    /**
+     * Field names that are visible only for admin (titular must not send or change these).
+     *
+     * @return list<string>
+     */
+    public function getVisibleOnlyForAdminFieldNames(Titular $titular): array
+    {
+        $fields = $titular->folder->getFieldsArray();
+        $names = [];
+        foreach ($fields as $field) {
+            if (($field['type'] ?? 'text') === 'section') {
+                continue;
+            }
+            $name = $field['field_name'] ?? null;
+            if ($name !== null && ! empty($field['visible_only_for_admin'])) {
+                $names[] = $name;
+            }
+        }
+
+        return $names;
     }
 
     /**

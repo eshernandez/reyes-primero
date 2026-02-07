@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { FolderOpen, FolderTree, LayoutGrid, Users } from 'lucide-react';
+import { Banknote, FileBarChart, FileCheck, FolderOpen, FolderTree, LayoutGrid, PiggyBank, UserCog, Users } from 'lucide-react';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -13,7 +13,9 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { index as aportesIndex } from '@/routes/aportes';
 import { index as foldersIndex } from '@/routes/folders';
+import { index as plansIndex } from '@/routes/plans';
 import { index as projectsIndex } from '@/routes/projects';
 import { index as titularesIndex } from '@/routes/titulares';
 import type { NavItem } from '@/types';
@@ -30,6 +32,11 @@ function useMainNavItems(): NavItem[] {
     if (role === 'super_admin' || role === 'admin') {
         items.push({ title: 'Proyectos', href: projectsIndex().url, icon: FolderOpen });
         items.push({ title: 'Carpetas', href: foldersIndex().url, icon: FolderTree });
+        items.push({ title: 'Planes', href: plansIndex().url, icon: Banknote });
+        items.push({ title: 'Aportes', href: aportesIndex().url, icon: PiggyBank });
+        items.push({ title: 'Consentimientos', href: '/consents', icon: FileCheck });
+        items.push({ title: 'Usuarios', href: '/usuarios', icon: UserCog });
+        items.push({ title: 'Informes', href: '/informes', icon: FileBarChart });
     }
 
     if (role === 'super_admin' || role === 'admin' || role === 'auxiliar') {

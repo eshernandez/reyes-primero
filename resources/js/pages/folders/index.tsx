@@ -9,6 +9,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Pagination, type PaginationLink } from '@/components/pagination';
 import { dashboard } from '@/routes';
 import { create, destroy, edit, index } from '@/routes/folders';
 import type { BreadcrumbItem } from '@/types';
@@ -24,7 +25,7 @@ type Folder = {
 };
 
 type Props = {
-    folders: { data: Folder[]; links: unknown[]; current_page: number; last_page: number };
+    folders: { data: Folder[]; links: PaginationLink[]; current_page: number; last_page: number };
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -113,6 +114,12 @@ export default function FoldersIndex({ folders }: Props) {
                             </Button>
                         </CardContent>
                     </Card>
+                )}
+
+                {folders.last_page > 1 && (
+                    <div className="flex justify-center pt-4">
+                        <Pagination links={folders.links} />
+                    </div>
                 )}
             </div>
         </AppLayout>

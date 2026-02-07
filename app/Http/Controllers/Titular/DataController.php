@@ -26,6 +26,11 @@ class DataController extends Controller
         }
 
         $service = new TitularDataService;
+        $adminOnlyKeys = $service->getVisibleOnlyForAdminFieldNames($titular);
+        foreach ($adminOnlyKeys as $key) {
+            unset($data[$key]);
+        }
+
         $files = $request->allFiles();
         if ($files !== []) {
             $data = $service->processFileUploads($titular, $data, $files);

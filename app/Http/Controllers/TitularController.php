@@ -8,6 +8,7 @@ use App\Models\Folder;
 use App\Models\Project;
 use App\Models\Titular;
 use App\Services\TitularAuthService;
+use App\Services\TitularDataService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -36,6 +37,43 @@ class TitularController extends Controller
             $search = $request->input('search');
             $query->where('nombre', 'like', "%{$search}%");
         }
+        if ($request->filled('folder_id')) {
+            $query->where('folder_id', $request->input('folder_id'));
+        }
+        if ($request->filled('status')) {
+            $query->where('status', $request->input('status'));
+        }
+        if ($request->filled('completitud_min') || $request->filled('completitud_max')) {
+            $completitudMin = (int) $request->input('completitud_min', 0);
+            $completitudMax = (int) $request->input('completitud_max', 100);
+            $completitudMin = max(0, min(100, $completitudMin));
+            $completitudMax = max(0, min(100, $completitudMax));
+            if ($request->filled('completitud_min') && $request->filled('completitud_max')) {
+                $query->whereBetween('completion_percentage', [
+                    min($completitudMin, $completitudMax),
+                    max($completitudMin, $completitudMax),
+                ]);
+            } elseif ($request->filled('completitud_min')) {
+                $query->where('completion_percentage', '>=', $completitudMin);
+            } else {
+                $query->where('completion_percentage', '<=', $completitudMax);
+            }
+        } elseif ($request->filled('completitud')) {
+            $range = $request->input('completitud');
+            if ($range === '0-25') {
+                $query->whereBetween('completion_percentage', [0, 25]);
+            } elseif ($range === '26-50') {
+                $query->whereBetween('completion_percentage', [26, 50]);
+            } elseif ($range === '51-75') {
+                $query->whereBetween('completion_percentage', [51, 75]);
+            } elseif ($range === '76-100') {
+                $query->whereBetween('completion_percentage', [76, 100]);
+            }
+        }
+        if ($request->filled('telefono')) {
+            $telefono = $request->input('telefono');
+            $query->where('data->celular', 'like', "%{$telefono}%");
+        }
 
         $titulares = $query->latest()->paginate(15)->withQueryString();
 
@@ -43,10 +81,13 @@ class TitularController extends Controller
             ? $request->user()->assignedProjects()->orderBy('title')->get(['projects.id', 'projects.title'])
             : Project::query()->orderBy('title')->get(['id', 'title']);
 
+        $foldersForFilter = Folder::query()->orderBy('name')->get(['id', 'name', 'version']);
+
         return Inertia::render('titulares/index', [
             'titulares' => $titulares,
             'projectsForFilter' => $projectsForFilter,
-            'filters' => $request->only(['search', 'project_id']),
+            'foldersForFilter' => $foldersForFilter,
+            'filters' => $request->only(['search', 'project_id', 'folder_id', 'status', 'completitud', 'completitud_min', 'completitud_max', 'telefono']),
             'statusLabels' => Titular::statusLabels(),
         ]);
     }
@@ -93,14 +134,42 @@ class TitularController extends Controller
     {
         $this->authorize('view', $titulare);
 
-        $titulare->load(['project', 'folder', 'creator:id,name', 'notes' => fn ($q) => $q->with('author:id,name')->latest()]);
+        $titulare->load([
+            'project',
+            'folder',
+            'creator:id,name',
+            'notes' => fn ($q) => $q->with('author:id,name')->latest(),
+            'aportes' => fn ($q) => $q->with(['plan:id,nombre', 'approvedByUser:id,name'])->latest(),
+        ]);
         $sections = $titulare->folder->getSections();
 
         return Inertia::render('titulares/show', [
             'titular' => $titulare,
             'sections' => $sections,
             'statusLabels' => Titular::statusLabels(),
+            'aportes' => $titulare->aportes,
+            'aporteEstadoLabels' => \App\Models\Aporte::estadoLabels(),
         ]);
+    }
+
+    public function regenerateAccessCode(Titular $titulare): RedirectResponse
+    {
+        $this->authorize('update', $titulare);
+
+        $authService = new TitularAuthService;
+        $titulare->update(['access_code' => $authService->generateAccessCode()]);
+
+        return redirect()->route('titulares.show', $titulare)->with('success', 'Código de 6 dígitos generado. El anterior deja de ser válido.');
+    }
+
+    public function regenerateUniqueUrl(Titular $titulare): RedirectResponse
+    {
+        $this->authorize('update', $titulare);
+
+        $authService = new TitularAuthService;
+        $titulare->update(['unique_url' => $authService->generateUniqueUrl()]);
+
+        return redirect()->route('titulares.show', $titulare)->with('success', 'Nueva URL de acceso generada. La anterior deja de ser válida.');
     }
 
     public function updateStatus(Request $request, Titular $titulare): RedirectResponse
@@ -166,5 +235,57 @@ class TitularController extends Controller
         $titulare->delete();
 
         return redirect()->route('titulares.index')->with('success', 'Titular desactivado correctamente.');
+    }
+
+    public function editData(Titular $titulare): Response
+    {
+        $this->authorize('update', $titulare);
+
+        $titulare->load(['project', 'folder']);
+        $sections = $titulare->folder->getSections();
+
+        return Inertia::render('titulares/data-edit', [
+            'titular' => [
+                'id' => $titulare->id,
+                'nombre' => $titulare->nombre,
+                'data' => $titulare->data ?? [],
+            ],
+            'sections' => $sections,
+        ]);
+    }
+
+    public function updateData(Request $request, Titular $titulare): RedirectResponse
+    {
+        $this->authorize('update', $titulare);
+
+        $data = $request->input('data', []);
+        if (! is_array($data)) {
+            $data = [];
+        }
+
+        $service = new TitularDataService;
+        $allowedKeys = $service->getAdminEditableFieldNames($titulare);
+        $filtered = array_intersect_key($data, array_flip($allowedKeys));
+
+        $current = $titulare->data ?? [];
+        $merged = array_merge($current, $filtered);
+
+        $result = $service->validateAndMergeData($titulare, $merged);
+
+        if (! $result['valid']) {
+            return redirect()
+                ->route('titulares.data.edit', $titulare)
+                ->withErrors($result['errors'])
+                ->withInput();
+        }
+
+        $titulare->update([
+            'data' => $result['data'],
+            'completion_percentage' => $service->calculateCompletionPercentage($titulare),
+        ]);
+
+        return redirect()
+            ->route('titulares.show', $titulare)
+            ->with('success', 'Datos de la carpeta actualizados correctamente.');
     }
 }

@@ -114,6 +114,14 @@ class Titular extends Model implements AuthenticatableContract
     }
 
     /**
+     * @return HasMany<Aporte, $this>
+     */
+    public function aportes(): HasMany
+    {
+        return $this->hasMany(Aporte::class);
+    }
+
+    /**
      * @return list<string>
      */
     public static function statusLabels(): array

@@ -204,7 +204,7 @@ export default function TitularDashboard({
             <header className="border-b bg-card">
                 <div className="flex h-14 items-center justify-between px-4">
                     <Link href="/" className="flex items-center gap-2 font-medium">
-                        <AppLogoIcon className="size-8 fill-current text-[var(--foreground)]" />
+                        <AppLogoIcon className="size-11 object-contain" />
                         <span>Reyes Primero</span>
                     </Link>
                     <div className="flex items-center gap-4">
@@ -264,6 +264,20 @@ export default function TitularDashboard({
                 </Card>
 
                 <Card className="mb-6">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <div>
+                            <CardTitle>Mis Aportes</CardTitle>
+                            <CardDescription>
+                                Registre sus aportes y consulte si el administrador ya los aprobó.
+                            </CardDescription>
+                        </div>
+                        <Button asChild variant="outline" size="sm">
+                            <Link href="/titular/aportes">Ver aportes</Link>
+                        </Button>
+                    </CardHeader>
+                </Card>
+
+                <Card className="mb-6">
                     <CardHeader>
                         <CardTitle>Completitud</CardTitle>
                         <CardDescription>Carpeta: {folder.name} (v{folder.version})</CardDescription>
@@ -313,25 +327,44 @@ export default function TitularDashboard({
                                                     }
                                                 }}
                                                 error={field.type === 'section' ? undefined : saveErrors[field.field_name as string]?.[0]}
+                                                disabled={field.filled_by_admin === true && field.editable_by_both !== true}
+                                                readOnlyLegend={
+                                                    field.filled_by_admin === true && field.editable_by_both !== true
+                                                        ? 'Campo no editable. Lo diligencia el administrador.'
+                                                        : undefined
+                                                }
                                             />
                                         ))}
                                 </CardContent>
                             </Card>
                         ))}
-                        <div className="flex items-center gap-4 pt-4">
-                            <Button onClick={handleSave} disabled={saveStatus === 'saving'}>
-                                {saveStatus === 'saving' ? <Spinner className="size-4" /> : 'Guardar cambios'}
-                            </Button>
-                            {saveStatus === 'ok' && (
-                                <span className="text-sm text-green-600">Guardado correctamente</span>
-                            )}
-                            {saveStatus === 'error' && (
-                                <span className="text-sm text-destructive">Error al guardar. Revise los campos.</span>
-                            )}
-                        </div>
                     </CardContent>
                 </Card>
             </main>
+
+            {/* Botón guardar flotante: siempre visible */}
+            <div className="fixed bottom-6 left-6 right-6 z-40 flex justify-center sm:left-auto sm:right-24 sm:max-w-[200px]">
+                <Button
+                    onClick={handleSave}
+                    disabled={saveStatus === 'saving'}
+                    className="w-full shadow-lg sm:w-auto"
+                >
+                    {saveStatus === 'saving' ? (
+                        <Spinner className="size-4" />
+                    ) : saveStatus === 'ok' ? (
+                        '✓ Guardado'
+                    ) : (
+                        'Guardar cambios'
+                    )}
+                </Button>
+            </div>
+            {saveStatus === 'error' && (
+                <div className="fixed bottom-20 left-6 right-6 z-40 flex justify-center sm:left-auto sm:right-24 sm:max-w-[280px]">
+                    <span className="rounded-md bg-destructive/90 px-3 py-2 text-center text-sm text-destructive-foreground">
+                        Error al guardar. Revise los campos.
+                    </span>
+                </div>
+            )}
 
             {/* Notas del administrador: icono flotante */}
             <Sheet open={notesOpen} onOpenChange={setNotesOpen}>
