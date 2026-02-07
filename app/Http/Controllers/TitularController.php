@@ -323,6 +323,11 @@ class TitularController extends Controller
         $current = $titulare->data ?? [];
         $merged = array_merge($current, $filtered);
 
+        $dataFiles = $request->allFiles()['data'] ?? [];
+        if (is_array($dataFiles) && $dataFiles !== []) {
+            $merged = $service->processFileUploads($titulare, $merged, $dataFiles);
+        }
+
         $result = $service->validateAndMergeData($titulare, $merged);
 
         if (! $result['valid']) {

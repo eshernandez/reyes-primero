@@ -30,6 +30,8 @@ type Props = {
     disabled?: boolean;
     /** Leyenda cuando el campo es solo lectura (ej. "Campo no editable. Lo diligencia el administrador.") */
     readOnlyLegend?: string;
+    /** URL para enlace "Ver archivo" en campos tipo file (ej. admin: /titulares/:id/file?path=...) */
+    fileDownloadUrl?: (path: string) => string;
 };
 
 type FileFieldProps = {
@@ -96,7 +98,15 @@ function FileFormField({ field, value, onChange, error, disabled = false, readOn
     );
 }
 
-export function DynamicFormField({ field, value, onChange, error, disabled = false, readOnlyLegend }: Props) {
+export function DynamicFormField({
+    field,
+    value,
+    onChange,
+    error,
+    disabled = false,
+    readOnlyLegend,
+    fileDownloadUrl,
+}: Props) {
     const id = `field-${field.field_name ?? 'section'}`;
     const displayValue = normalizeValue(value);
 
@@ -232,7 +242,7 @@ export function DynamicFormField({ field, value, onChange, error, disabled = fal
                 error={error}
                 disabled={disabled}
                 readOnlyLegend={readOnlyLegend}
-                fileDownloadUrl={(path) => `/titular/file?path=${encodeURIComponent(path)}`}
+                fileDownloadUrl={fileDownloadUrl ?? ((path) => `/titular/file?path=${encodeURIComponent(path)}`)}
             />
         );
     }

@@ -38,7 +38,6 @@ export default function TitularDataEdit({ titular, sections }: Props) {
     });
 
     const setDataField = (key: string, value: string | number | File | null) => {
-        if (value instanceof File) return;
         form.setData('data', { ...form.data.data, [key]: value ?? '' });
     };
 
@@ -90,7 +89,12 @@ export default function TitularDataEdit({ titular, sections }: Props) {
                                                             value={
                                                                 field.type === 'section'
                                                                     ? undefined
-                                                                    : form.data.data[field.field_name as string]
+                                                                    : field.type === 'file'
+                                                                      ? typeof form.data.data[field.field_name as string] ===
+                                                                        'string'
+                                                                        ? form.data.data[field.field_name as string]
+                                                                        : undefined
+                                                                      : form.data.data[field.field_name as string]
                                                             }
                                                             onChange={(v) => {
                                                                 if (field.type === 'section') return;
@@ -104,6 +108,12 @@ export default function TitularDataEdit({ titular, sections }: Props) {
                                                                       ]
                                                             }
                                                             disabled={!adminCanEdit}
+                                                            fileDownloadUrl={
+                                                                field.type === 'file'
+                                                                    ? (path) =>
+                                                                          `/titulares/${titular.id}/file?path=${encodeURIComponent(path)}`
+                                                                    : undefined
+                                                            }
                                                         />
                                                     </div>
                                                 );

@@ -26,6 +26,14 @@ class AppServiceProvider extends ServiceProvider
     {
         if ($this->app->environment('production')) {
             URL::forceScheme('https');
+        } elseif ($this->app->environment('local')) {
+            URL::forceScheme('http');
+            $appUrl = config('app.url');
+            if ($appUrl) {
+                $appUrl = preg_replace('#^https://#', 'http://', $appUrl);
+                config(['app.url' => $appUrl]);
+                URL::forceRootUrl(rtrim($appUrl, '/'));
+            }
         }
 
         $this->configureDefaults();
