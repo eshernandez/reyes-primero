@@ -3,13 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Aporte;
+use App\Services\PrivateFileServe;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AporteSoporteController extends Controller
 {
-    public function __invoke(Request $request, Aporte $aporte): BinaryFileResponse
+    public function __invoke(Request $request, Aporte $aporte): BinaryFileResponse|StreamedResponse
     {
         if (auth()->guard('web')->check()) {
             $this->authorize('view', $aporte);
@@ -21,16 +22,15 @@ class AporteSoporteController extends Controller
             abort(401);
         }
 
-        if (! $aporte->soporte_path || ! Storage::disk('local')->exists($aporte->soporte_path)) {
+        if (! $aporte->soporte_path) {
             abort(404);
         }
 
-        $fullPath = Storage::disk('local')->path($aporte->soporte_path);
-        $mime = Storage::disk('local')->mimeType($aporte->soporte_path) ?: 'application/octet-stream';
+        $response = PrivateFileServe::response($aporte->soporte_path, $aporte->soporte_path);
+        if ($response === null) {
+            abort(404);
+        }
 
-        return response()->file($fullPath, [
-            'Content-Type' => $mime,
-            'Content-Disposition' => 'inline; filename="'.basename($aporte->soporte_path).'"',
-        ]);
+        return $response;
     }
 }

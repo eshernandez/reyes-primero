@@ -49,7 +49,7 @@ class AporteController extends Controller
         $file = $request->file('soporte');
         $ext = $file->getClientOriginalExtension() ?: $file->guessExtension();
         $filename = 'soporte_'.now()->format('YmdHis').'.'.$ext;
-        $path = $file->storeAs('aportes/'.$aporte->id, $filename, 'local');
+        $path = $file->storeAs('aportes/'.$aporte->id, $filename, config('filesystems.private_disk'));
         $aporte->update(['soporte_path' => $path]);
 
         return redirect()->route('titular.aportes.index')->with('success', 'Aporte registrado correctamente. El administrador lo revisará.');

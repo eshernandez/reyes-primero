@@ -18,9 +18,13 @@ class Aporte extends Model
      */
     protected $fillable = [
         'titular_id',
+        'fecha_consignacion',
+        'nro_recibo',
         'plan_id',
         'valor',
         'soporte_path',
+        'verific_antecedentes',
+        'observaciones',
         'estado',
         'approved_at',
         'approved_by',
@@ -33,6 +37,7 @@ class Aporte extends Model
     {
         return [
             'valor' => 'decimal:2',
+            'fecha_consignacion' => 'date',
             'approved_at' => 'datetime',
         ];
     }

@@ -48,10 +48,14 @@ type Note = {
 type Plan = { id: number; nombre: string; valor_ingreso: string; fecha_cierre: string | null };
 type Aporte = {
     id: number;
+    fecha_consignacion?: string | null;
+    nro_recibo?: string | null;
     valor: string;
     estado: string;
     created_at: string;
     soporte_path?: string | null;
+    verific_antecedentes?: string | null;
+    observaciones?: string | null;
     approved_at?: string | null;
     plan: { id: number; nombre: string } | null;
     approved_by_user: { id: number; name: string } | null;
@@ -117,13 +121,20 @@ export default function TitularShow({ titular, sections, statusLabels = {}, apor
     });
 
     const addAporteForm = useForm({
+        fecha_consignacion: '',
+        nro_recibo: '',
         valor: '',
+        plan_id: '' as number | '',
+        verific_antecedentes: '',
+        observaciones: '',
         soporte: null as File | null,
     });
 
     const gestionarForm = useForm({
         plan_id: '' as number | '',
         estado: 'aprobado' as 'aprobado' | 'rechazado',
+        verific_antecedentes: '',
+        observaciones: '',
     });
 
     const handleAddNote = (e: React.FormEvent) => {
@@ -290,21 +301,37 @@ export default function TitularShow({ titular, sections, statusLabels = {}, apor
                             </div>
                         ) : (
                             <div className="space-y-3">
-                                <div className="rounded-md border">
-                                    <table className="w-full text-sm">
+                                <div className="overflow-x-auto rounded-md border">
+                                    <table className="w-full min-w-[800px] text-sm">
                                         <thead>
                                             <tr className="border-b bg-muted/50">
-                                                <th className="p-3 text-left font-medium">Valor</th>
+                                                <th className="p-3 text-left font-medium">Fecha consignación</th>
+                                                <th className="p-3 text-left font-medium">Nro. recibo</th>
+                                                <th className="p-3 text-left font-medium">Valor recibo</th>
+                                                <th className="p-3 text-left font-medium">Programa o campaña</th>
+                                                <th className="p-3 text-left font-medium">Verific. antecedentes</th>
+                                                <th className="p-3 text-left font-medium">Observaciones</th>
                                                 <th className="p-3 text-left font-medium">Estado</th>
-                                                <th className="p-3 text-left font-medium">Plan</th>
-                                                <th className="p-3 text-left font-medium">Fecha</th>
                                                 <th className="p-3 text-right font-medium">Acción</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {aportes.map((aporte) => (
                                                 <tr key={aporte.id} className="border-b last:border-0">
+                                                    <td className="p-3 text-muted-foreground">
+                                                        {aporte.fecha_consignacion
+                                                            ? new Date(aporte.fecha_consignacion).toLocaleDateString()
+                                                            : '—'}
+                                                    </td>
+                                                    <td className="p-3">{aporte.nro_recibo ?? '—'}</td>
                                                     <td className="p-3">{aporte.valor}</td>
+                                                    <td className="p-3">{aporte.plan?.nombre ?? '—'}</td>
+                                                    <td className="p-3 max-w-[120px] truncate" title={aporte.verific_antecedentes ?? ''}>
+                                                        {aporte.verific_antecedentes ?? '—'}
+                                                    </td>
+                                                    <td className="p-3 max-w-[160px] truncate" title={aporte.observaciones ?? ''}>
+                                                        {aporte.observaciones ?? '—'}
+                                                    </td>
                                                     <td className="p-3">
                                                         <Badge
                                                             variant={
@@ -318,10 +345,6 @@ export default function TitularShow({ titular, sections, statusLabels = {}, apor
                                                             {aporteEstadoLabels[aporte.estado] ?? aporte.estado}
                                                         </Badge>
                                                     </td>
-                                                    <td className="p-3">{aporte.plan?.nombre ?? '—'}</td>
-                                                    <td className="p-3 text-muted-foreground">
-                                                        {new Date(aporte.created_at).toLocaleDateString()}
-                                                    </td>
                                                     <td className="p-3 text-right">
                                                         <Button
                                                             variant="ghost"
@@ -331,6 +354,8 @@ export default function TitularShow({ titular, sections, statusLabels = {}, apor
                                                                 gestionarForm.setData({
                                                                     plan_id: aporte.plan?.id ?? '',
                                                                     estado: (aporte.estado === 'aprobado' || aporte.estado === 'rechazado' ? aporte.estado : 'aprobado') as 'aprobado' | 'rechazado',
+                                                                    verific_antecedentes: aporte.verific_antecedentes ?? '',
+                                                                    observaciones: aporte.observaciones ?? '',
                                                                 });
                                                             }}
                                                         >
@@ -413,10 +438,40 @@ export default function TitularShow({ titular, sections, statusLabels = {}, apor
                     {gestionarAporte && (
                         <div className="space-y-4">
                             <div className="space-y-2 text-sm">
+                                {gestionarAporte.fecha_consignacion && (
+                                    <p>
+                                        <span className="font-medium text-muted-foreground">Fecha consignación:</span>{' '}
+                                        {new Date(gestionarAporte.fecha_consignacion).toLocaleDateString()}
+                                    </p>
+                                )}
+                                {gestionarAporte.nro_recibo && (
+                                    <p>
+                                        <span className="font-medium text-muted-foreground">Nro. recibo:</span>{' '}
+                                        {gestionarAporte.nro_recibo}
+                                    </p>
+                                )}
                                 <p>
-                                    <span className="font-medium text-muted-foreground">Valor:</span>{' '}
+                                    <span className="font-medium text-muted-foreground">Valor recibo:</span>{' '}
                                     {gestionarAporte.valor}
                                 </p>
+                                {gestionarAporte.plan && (
+                                    <p>
+                                        <span className="font-medium text-muted-foreground">Programa o campaña:</span>{' '}
+                                        {gestionarAporte.plan.nombre}
+                                    </p>
+                                )}
+                                {gestionarAporte.verific_antecedentes && (
+                                    <p>
+                                        <span className="font-medium text-muted-foreground">Verific. antecedentes:</span>{' '}
+                                        {gestionarAporte.verific_antecedentes}
+                                    </p>
+                                )}
+                                {gestionarAporte.observaciones && (
+                                    <p>
+                                        <span className="font-medium text-muted-foreground">Observaciones:</span>{' '}
+                                        {gestionarAporte.observaciones}
+                                    </p>
+                                )}
                                 <p>
                                     <span className="font-medium text-muted-foreground">Estado:</span>{' '}
                                     <Badge
@@ -431,12 +486,6 @@ export default function TitularShow({ titular, sections, statusLabels = {}, apor
                                         {aporteEstadoLabels[gestionarAporte.estado] ?? gestionarAporte.estado}
                                     </Badge>
                                 </p>
-                                {gestionarAporte.plan && (
-                                    <p>
-                                        <span className="font-medium text-muted-foreground">Plan:</span>{' '}
-                                        {gestionarAporte.plan.nombre}
-                                    </p>
-                                )}
                                 {gestionarAporte.approved_at && gestionarAporte.approved_by_user && (
                                     <p className="text-muted-foreground">
                                         Aprobado por {gestionarAporte.approved_by_user.name} el{' '}
@@ -511,6 +560,30 @@ export default function TitularShow({ titular, sections, statusLabels = {}, apor
                                         </Select>
                                         <InputError message={gestionarForm.errors.estado} />
                                     </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="gestionar-verific">Verific. antecedentes</Label>
+                                        <Input
+                                            id="gestionar-verific"
+                                            value={gestionarForm.data.verific_antecedentes}
+                                            onChange={(e) =>
+                                                gestionarForm.setData('verific_antecedentes', e.target.value)
+                                            }
+                                            placeholder="Ej: Sí / No"
+                                        />
+                                        <InputError message={gestionarForm.errors.verific_antecedentes} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="gestionar-observ">Observaciones</Label>
+                                        <textarea
+                                            id="gestionar-observ"
+                                            value={gestionarForm.data.observaciones}
+                                            onChange={(e) => gestionarForm.setData('observaciones', e.target.value)}
+                                            placeholder="Observaciones del aporte"
+                                            className="min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                                            rows={3}
+                                        />
+                                        <InputError message={gestionarForm.errors.observaciones} />
+                                    </div>
                                     <DialogFooter>
                                         <Button
                                             type="button"
@@ -532,7 +605,7 @@ export default function TitularShow({ titular, sections, statusLabels = {}, apor
 
             {/* Modal: Agregar aporte */}
             <Dialog open={addAporteOpen} onOpenChange={setAddAporteOpen}>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
                     <DialogHeader>
                         <DialogTitle>Agregar aporte</DialogTitle>
                         <DialogDescription>
@@ -553,7 +626,27 @@ export default function TitularShow({ titular, sections, statusLabels = {}, apor
                         className="space-y-4"
                     >
                         <div className="space-y-2">
-                            <Label htmlFor="aporte-valor">Valor (obligatorio)</Label>
+                            <Label htmlFor="aporte-fecha">Fecha consignación</Label>
+                            <Input
+                                id="aporte-fecha"
+                                type="date"
+                                value={addAporteForm.data.fecha_consignacion}
+                                onChange={(e) => addAporteForm.setData('fecha_consignacion', e.target.value)}
+                            />
+                            <InputError message={addAporteForm.errors.fecha_consignacion} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="aporte-nro">Nro. recibo</Label>
+                            <Input
+                                id="aporte-nro"
+                                value={addAporteForm.data.nro_recibo}
+                                onChange={(e) => addAporteForm.setData('nro_recibo', e.target.value)}
+                                placeholder="Número de recibo"
+                            />
+                            <InputError message={addAporteForm.errors.nro_recibo} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="aporte-valor">Valor recibo (obligatorio)</Label>
                             <Input
                                 id="aporte-valor"
                                 type="number"
@@ -564,6 +657,51 @@ export default function TitularShow({ titular, sections, statusLabels = {}, apor
                                 required
                             />
                             <InputError message={addAporteForm.errors.valor} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="aporte-plan">Programa o campaña (plan)</Label>
+                            <Select
+                                value={addAporteForm.data.plan_id ? String(addAporteForm.data.plan_id) : 'all'}
+                                onValueChange={(v) =>
+                                    addAporteForm.setData('plan_id', v === 'all' ? '' : Number(v))
+                                }
+                            >
+                                <SelectTrigger id="aporte-plan">
+                                    <SelectValue placeholder="Seleccione un plan (opcional)" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {plans.map((p) => (
+                                        <SelectItem key={p.id} value={String(p.id)}>
+                                            {p.nombre}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <InputError message={addAporteForm.errors.plan_id} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="aporte-verific">Verific. antecedentes</Label>
+                            <Input
+                                id="aporte-verific"
+                                value={addAporteForm.data.verific_antecedentes}
+                                onChange={(e) =>
+                                    addAporteForm.setData('verific_antecedentes', e.target.value)
+                                }
+                                placeholder="Ej: Sí / No"
+                            />
+                            <InputError message={addAporteForm.errors.verific_antecedentes} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="aporte-observ">Observaciones</Label>
+                            <textarea
+                                id="aporte-observ"
+                                value={addAporteForm.data.observaciones}
+                                onChange={(e) => addAporteForm.setData('observaciones', e.target.value)}
+                                placeholder="Observaciones"
+                                className="min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                                rows={3}
+                            />
+                            <InputError message={addAporteForm.errors.observaciones} />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="aporte-soporte">Soporte (opcional, PDF o imagen)</Label>

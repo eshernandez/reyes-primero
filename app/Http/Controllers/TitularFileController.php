@@ -3,13 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Titular;
+use App\Services\PrivateFileServe;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TitularFileController extends Controller
 {
-    public function __invoke(Request $request, Titular $titulare): BinaryFileResponse
+    public function __invoke(Request $request, Titular $titulare): BinaryFileResponse|StreamedResponse
     {
         $this->authorize('view', $titulare);
 
@@ -25,15 +26,12 @@ class TitularFileController extends Controller
         if (! str_starts_with($path, $prefix)) {
             abort(404);
         }
-        if (! Storage::disk('local')->exists($path)) {
+
+        $response = PrivateFileServe::response($path, $path);
+        if ($response === null) {
             abort(404);
         }
-        $fullPath = Storage::disk('local')->path($path);
-        $mime = Storage::disk('local')->mimeType($path) ?: 'application/octet-stream';
 
-        return response()->file($fullPath, [
-            'Content-Type' => $mime,
-            'Content-Disposition' => 'inline; filename="'.basename($path).'"',
-        ]);
+        return $response;
     }
 }

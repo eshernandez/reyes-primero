@@ -28,6 +28,8 @@ class UpdateAporteRequest extends FormRequest
         return [
             'plan_id' => ['required_if:estado,aprobado', 'nullable', 'integer', 'exists:plans,id'],
             'estado' => ['required', 'string', 'in:aprobado,rechazado'],
+            'verific_antecedentes' => ['nullable', 'string', 'max:255'],
+            'observaciones' => ['nullable', 'string', 'max:2000'],
         ];
     }
 }

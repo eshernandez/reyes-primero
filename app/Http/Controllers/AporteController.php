@@ -62,6 +62,8 @@ class AporteController extends Controller
         $aporte->update([
             'plan_id' => $request->validated('estado') === 'aprobado' ? $request->validated('plan_id') : null,
             'estado' => $request->validated('estado'),
+            'verific_antecedentes' => $request->validated('verific_antecedentes'),
+            'observaciones' => $request->validated('observaciones'),
             'approved_at' => now(),
             'approved_by' => $request->user()->id,
         ]);

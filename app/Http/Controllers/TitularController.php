@@ -162,7 +162,12 @@ class TitularController extends Controller
     {
         $aporte = Aporte::query()->create([
             'titular_id' => $titulare->id,
+            'fecha_consignacion' => $request->validated('fecha_consignacion'),
+            'nro_recibo' => $request->validated('nro_recibo'),
             'valor' => $request->validated('valor'),
+            'plan_id' => $request->validated('plan_id'),
+            'verific_antecedentes' => $request->validated('verific_antecedentes'),
+            'observaciones' => $request->validated('observaciones'),
             'estado' => Aporte::ESTADO_PENDIENTE,
         ]);
 
@@ -170,7 +175,7 @@ class TitularController extends Controller
         if ($file) {
             $ext = $file->getClientOriginalExtension() ?: $file->guessExtension();
             $filename = 'soporte_'.now()->format('YmdHis').'.'.$ext;
-            $path = $file->storeAs('aportes/'.$aporte->id, $filename, 'local');
+            $path = $file->storeAs('aportes/'.$aporte->id, $filename, config('filesystems.private_disk'));
             $aporte->update(['soporte_path' => $path]);
         }
 
@@ -187,6 +192,8 @@ class TitularController extends Controller
         $aporte->update([
             'plan_id' => $request->validated('estado') === 'aprobado' ? $request->validated('plan_id') : null,
             'estado' => $request->validated('estado'),
+            'verific_antecedentes' => $request->validated('verific_antecedentes'),
+            'observaciones' => $request->validated('observaciones'),
             'approved_at' => now(),
             'approved_by' => $request->user()->id,
         ]);

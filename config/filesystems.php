@@ -60,7 +60,32 @@ return [
             'report' => false,
         ],
 
+        /*
+        | DigitalOcean Spaces (S3-compatible). Use when APP_ENV=production.
+        | Set FILESYSTEM_DISK=spaces and configure DO_SPACES_* in .env.
+        */
+        'spaces' => [
+            'driver' => 's3',
+            'key' => env('DO_SPACES_KEY'),
+            'secret' => env('DO_SPACES_SECRET'),
+            'region' => env('DO_SPACES_REGION', 'sfo2'),
+            'bucket' => env('DO_SPACES_BUCKET'),
+            'endpoint' => env('DO_SPACES_ENDPOINT'),
+            'url' => env('DO_SPACES_URL'),
+            'use_path_style_endpoint' => false,
+            'throw' => false,
+            'report' => false,
+        ],
+
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Private uploads disk (aportes soporte, titular files)
+    |--------------------------------------------------------------------------
+    | Use 'local' in development and 'spaces' in production.
+    */
+    'private_disk' => env('FILESYSTEM_PRIVATE_DISK', env('FILESYSTEM_DISK', 'local')),
 
     /*
     |--------------------------------------------------------------------------

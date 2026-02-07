@@ -21,11 +21,15 @@ import type { BreadcrumbItem } from '@/types';
 type Plan = { id: number; nombre: string; valor_ingreso: string; fecha_cierre: string | null };
 type Aporte = {
     id: number;
+    fecha_consignacion?: string | null;
+    nro_recibo?: string | null;
     valor: string;
     estado: string;
     soporte_path: string | null;
     approved_at: string | null;
     created_at: string;
+    verific_antecedentes?: string | null;
+    observaciones?: string | null;
     titular: { id: number; nombre: string; project: { id: number; title: string } };
     plan: Plan | null;
     approved_by_user: { id: number; name: string } | null;
@@ -47,6 +51,8 @@ export default function AporteShow({ aporte, plans, estadoLabels }: Props) {
     const form = useForm({
         plan_id: aporte.plan?.id ?? '',
         estado: 'aprobado' as 'aprobado' | 'rechazado',
+        verific_antecedentes: aporte.verific_antecedentes ?? '',
+        observaciones: aporte.observaciones ?? '',
     });
 
     const canApprove = aporte.estado === 'pendiente' && plans.length > 0;
@@ -84,9 +90,36 @@ export default function AporteShow({ aporte, plans, estadoLabels }: Props) {
                                 <span className="font-medium">Proyecto:</span>{' '}
                                 {aporte.titular.project.title}
                             </p>
+                            {aporte.fecha_consignacion && (
+                                <p className="text-sm">
+                                    <span className="font-medium">Fecha consignación:</span>{' '}
+                                    {new Date(aporte.fecha_consignacion).toLocaleDateString()}
+                                </p>
+                            )}
+                            {aporte.nro_recibo && (
+                                <p className="text-sm">
+                                    <span className="font-medium">Nro. recibo:</span> {aporte.nro_recibo}
+                                </p>
+                            )}
                             <p className="text-sm">
-                                <span className="font-medium">Valor:</span> {aporte.valor}
+                                <span className="font-medium">Valor recibo:</span> {aporte.valor}
                             </p>
+                            {aporte.plan && (
+                                <p className="text-sm">
+                                    <span className="font-medium">Programa o campaña:</span> {aporte.plan.nombre}
+                                </p>
+                            )}
+                            {aporte.verific_antecedentes && (
+                                <p className="text-sm">
+                                    <span className="font-medium">Verific. antecedentes:</span>{' '}
+                                    {aporte.verific_antecedentes}
+                                </p>
+                            )}
+                            {aporte.observaciones && (
+                                <p className="text-sm">
+                                    <span className="font-medium">Observaciones:</span> {aporte.observaciones}
+                                </p>
+                            )}
                             <p className="text-sm">
                                 <span className="font-medium">Estado:</span>{' '}
                                 <Badge
@@ -101,12 +134,6 @@ export default function AporteShow({ aporte, plans, estadoLabels }: Props) {
                                     {estadoLabels[aporte.estado] ?? aporte.estado}
                                 </Badge>
                             </p>
-                            {aporte.plan && (
-                                <p className="text-sm">
-                                    <span className="font-medium">Plan asociado:</span>{' '}
-                                    {aporte.plan.nombre}
-                                </p>
-                            )}
                             {aporte.approved_at && aporte.approved_by_user && (
                                 <p className="text-sm text-muted-foreground">
                                     Aprobado por {aporte.approved_by_user.name} el{' '}
@@ -184,6 +211,30 @@ export default function AporteShow({ aporte, plans, estadoLabels }: Props) {
                                             </SelectContent>
                                         </Select>
                                         <InputError message={form.errors.estado} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="verific">Verific. antecedentes</Label>
+                                        <Input
+                                            id="verific"
+                                            value={form.data.verific_antecedentes}
+                                            onChange={(e) =>
+                                                form.setData('verific_antecedentes', e.target.value)
+                                            }
+                                            placeholder="Ej: Sí / No"
+                                        />
+                                        <InputError message={form.errors.verific_antecedentes} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="observ">Observaciones</Label>
+                                        <textarea
+                                            id="observ"
+                                            value={form.data.observaciones}
+                                            onChange={(e) => form.setData('observaciones', e.target.value)}
+                                            placeholder="Observaciones"
+                                            className="min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                                            rows={3}
+                                        />
+                                        <InputError message={form.errors.observaciones} />
                                     </div>
                                     <Button type="submit" disabled={form.processing}>
                                         Guardar

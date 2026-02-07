@@ -22,10 +22,14 @@ type Titular = { id: number; nombre: string; project_id: number };
 type Plan = { id: number; nombre: string } | null;
 type Aporte = {
     id: number;
+    fecha_consignacion?: string | null;
+    nro_recibo?: string | null;
     valor: string;
     estado: string;
     soporte_path: string | null;
     created_at: string;
+    verific_antecedentes?: string | null;
+    observaciones?: string | null;
     titular: Titular;
     plan: Plan;
     approved_by_user?: { id: number; name: string } | null;
@@ -116,15 +120,18 @@ export default function AportesIndex({ aportes, plans, estadoLabels, filters }: 
                     </CardContent>
                 </Card>
 
-                <div className="rounded-md border">
-                    <table className="w-full text-sm">
+                <div className="overflow-x-auto rounded-md border">
+                    <table className="w-full min-w-[900px] text-sm">
                         <thead>
                             <tr className="border-b bg-muted/50">
                                 <th className="p-3 text-left font-medium">Titular</th>
-                                <th className="p-3 text-left font-medium">Valor</th>
+                                <th className="p-3 text-left font-medium">Fecha consignación</th>
+                                <th className="p-3 text-left font-medium">Nro. recibo</th>
+                                <th className="p-3 text-left font-medium">Valor recibo</th>
+                                <th className="p-3 text-left font-medium">Programa o campaña</th>
+                                <th className="p-3 text-left font-medium">Verific. antecedentes</th>
+                                <th className="p-3 text-left font-medium">Observaciones</th>
                                 <th className="p-3 text-left font-medium">Estado</th>
-                                <th className="p-3 text-left font-medium">Plan</th>
-                                <th className="p-3 text-left font-medium">Fecha</th>
                                 <th className="p-3 text-right font-medium">Acción</th>
                             </tr>
                         </thead>
@@ -132,7 +139,20 @@ export default function AportesIndex({ aportes, plans, estadoLabels, filters }: 
                             {aportes.data.map((aporte) => (
                                 <tr key={aporte.id} className="border-b last:border-0">
                                     <td className="p-3">{aporte.titular.nombre}</td>
+                                    <td className="p-3 text-muted-foreground">
+                                        {aporte.fecha_consignacion
+                                            ? new Date(aporte.fecha_consignacion).toLocaleDateString()
+                                            : '—'}
+                                    </td>
+                                    <td className="p-3">{aporte.nro_recibo ?? '—'}</td>
                                     <td className="p-3">{aporte.valor}</td>
+                                    <td className="p-3">{aporte.plan?.nombre ?? '—'}</td>
+                                    <td className="p-3 max-w-[100px] truncate" title={aporte.verific_antecedentes ?? ''}>
+                                        {aporte.verific_antecedentes ?? '—'}
+                                    </td>
+                                    <td className="p-3 max-w-[120px] truncate" title={aporte.observaciones ?? ''}>
+                                        {aporte.observaciones ?? '—'}
+                                    </td>
                                     <td className="p-3">
                                         <Badge
                                             variant={
@@ -145,10 +165,6 @@ export default function AportesIndex({ aportes, plans, estadoLabels, filters }: 
                                         >
                                             {estadoLabels[aporte.estado] ?? aporte.estado}
                                         </Badge>
-                                    </td>
-                                    <td className="p-3">{aporte.plan?.nombre ?? '—'}</td>
-                                    <td className="p-3 text-muted-foreground">
-                                        {new Date(aporte.created_at).toLocaleDateString()}
                                     </td>
                                     <td className="p-3 text-right">
                                         <Button variant="ghost" size="sm" asChild>

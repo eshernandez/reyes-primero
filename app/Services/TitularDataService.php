@@ -103,7 +103,7 @@ class TitularDataService
             }
             $ext = $file->getClientOriginalExtension() ?: $file->guessExtension();
             $filename = $name.'_'.now()->format('YmdHis').'.'.($ext ?? 'bin');
-            $path = $file->storeAs($dir, $filename, 'local');
+            $path = $file->storeAs($dir, $filename, config('filesystems.private_disk'));
             if ($path !== false) {
                 $merged[$name] = $path;
             }
