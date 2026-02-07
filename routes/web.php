@@ -51,6 +51,8 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::post('titulares/{titulare}/regenerate-code', [\App\Http\Controllers\TitularController::class, 'regenerateAccessCode'])->name('titulares.regenerate-code');
     Route::post('titulares/{titulare}/regenerate-url', [\App\Http\Controllers\TitularController::class, 'regenerateUniqueUrl'])->name('titulares.regenerate-url');
     Route::patch('titulares/{titulare}/status', [\App\Http\Controllers\TitularController::class, 'updateStatus'])->name('titulares.status.update');
+    Route::post('titulares/{titulare}/aportes', [\App\Http\Controllers\TitularController::class, 'storeAporte'])->name('titulares.aportes.store');
+    Route::put('titulares/{titulare}/aportes/{aporte}', [\App\Http\Controllers\TitularController::class, 'updateAporte'])->name('titulares.aportes.update');
     Route::get('titulares/import/template', [TitularImportController::class, 'template'])->name('titulares.import.template');
     Route::get('titulares/import/create', [TitularImportController::class, 'create'])->name('titulares.import.create');
     Route::post('titulares/import', [TitularImportController::class, 'store'])->name('titulares.import.store');

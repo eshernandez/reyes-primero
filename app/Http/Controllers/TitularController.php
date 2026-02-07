@@ -2,9 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreTitularAporteRequest;
 use App\Http\Requests\StoreTitularRequest;
+use App\Http\Requests\UpdateAporteRequest;
 use App\Http\Requests\UpdateTitularRequest;
+use App\Models\Aporte;
 use App\Models\Folder;
+use App\Models\Plan;
 use App\Models\Project;
 use App\Models\Titular;
 use App\Services\TitularAuthService;
@@ -142,14 +146,56 @@ class TitularController extends Controller
             'aportes' => fn ($q) => $q->with(['plan:id,nombre', 'approvedByUser:id,name'])->latest(),
         ]);
         $sections = $titulare->folder->getSections();
+        $plans = Plan::query()->orderBy('nombre')->get(['id', 'nombre', 'valor_ingreso', 'fecha_cierre']);
 
         return Inertia::render('titulares/show', [
             'titular' => $titulare,
             'sections' => $sections,
             'statusLabels' => Titular::statusLabels(),
             'aportes' => $titulare->aportes,
-            'aporteEstadoLabels' => \App\Models\Aporte::estadoLabels(),
+            'aporteEstadoLabels' => Aporte::estadoLabels(),
+            'plans' => $plans,
         ]);
+    }
+
+    public function storeAporte(StoreTitularAporteRequest $request, Titular $titulare): RedirectResponse
+    {
+        $aporte = Aporte::query()->create([
+            'titular_id' => $titulare->id,
+            'valor' => $request->validated('valor'),
+            'estado' => Aporte::ESTADO_PENDIENTE,
+        ]);
+
+        $file = $request->file('soporte');
+        if ($file) {
+            $ext = $file->getClientOriginalExtension() ?: $file->guessExtension();
+            $filename = 'soporte_'.now()->format('YmdHis').'.'.$ext;
+            $path = $file->storeAs('aportes/'.$aporte->id, $filename, 'local');
+            $aporte->update(['soporte_path' => $path]);
+        }
+
+        return redirect()->route('titulares.show', $titulare)->with('success', 'Aporte agregado correctamente.');
+    }
+
+    public function updateAporte(UpdateAporteRequest $request, Titular $titulare, Aporte $aporte): RedirectResponse
+    {
+        if ($aporte->titular_id !== $titulare->id) {
+            abort(404);
+        }
+        $this->authorize('update', $aporte);
+
+        $aporte->update([
+            'plan_id' => $request->validated('estado') === 'aprobado' ? $request->validated('plan_id') : null,
+            'estado' => $request->validated('estado'),
+            'approved_at' => now(),
+            'approved_by' => $request->user()->id,
+        ]);
+
+        $message = $request->validated('estado') === 'aprobado'
+            ? 'Aporte aprobado y asociado al plan.'
+            : 'Aporte rechazado.';
+
+        return redirect()->route('titulares.show', $titulare)->with('success', $message);
     }
 
     public function regenerateAccessCode(Titular $titulare): RedirectResponse

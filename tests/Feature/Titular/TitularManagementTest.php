@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Titular;
 
+use App\Models\Aporte;
 use App\Models\Folder;
+use App\Models\Plan;
 use App\Models\Project;
 use App\Models\Titular;
 use App\Models\User;
@@ -215,5 +217,112 @@ class TitularManagementTest extends TestCase
         $titular->refresh();
         $this->assertNotSame($oldUrl, $titular->unique_url);
         $this->assertSame(32, strlen($titular->unique_url));
+    }
+
+    public function test_admin_can_add_aporte_to_titular_from_show_page(): void
+    {
+        $user = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $authService = new TitularAuthService;
+        $project = Project::query()->create([
+            'title' => 'Proyecto Test',
+            'description' => null,
+            'valor_ingreso' => 0,
+            'status' => 'activo',
+            'created_by' => $user->id,
+        ]);
+        $folder = Folder::query()->create([
+            'name' => 'Carpeta Test',
+            'description' => null,
+            'version' => '1.0',
+            'fields' => ['version' => '1.0', 'fields' => []],
+            'is_default' => false,
+            'created_by' => $user->id,
+        ]);
+        $titular = Titular::query()->create([
+            'nombre' => 'Titular Aporte Test',
+            'access_code' => $authService->generateAccessCode(),
+            'unique_url' => $authService->generateUniqueUrl(),
+            'project_id' => $project->id,
+            'folder_id' => $folder->id,
+            'folder_version' => $folder->version,
+            'data' => [],
+            'consents_accepted' => [],
+            'completion_percentage' => 0,
+            'status' => Titular::STATUS_EN_PROCESO,
+            'is_active' => true,
+            'created_by' => $user->id,
+        ]);
+
+        $response = $this->actingAs($user)->post(route('titulares.aportes.store', $titular), [
+            'valor' => 150.50,
+        ]);
+
+        $response->assertRedirect(route('titulares.show', $titular));
+        $response->assertSessionHas('success');
+        $this->assertDatabaseHas('aportes', [
+            'titular_id' => $titular->id,
+            'valor' => 150.50,
+            'estado' => Aporte::ESTADO_PENDIENTE,
+        ]);
+    }
+
+    public function test_admin_can_update_aporte_from_titular_show_page(): void
+    {
+        $user = User::factory()->create(['role' => User::ROLE_ADMIN]);
+        $authService = new TitularAuthService;
+        $project = Project::query()->create([
+            'title' => 'Proyecto Test',
+            'description' => null,
+            'valor_ingreso' => 0,
+            'status' => 'activo',
+            'created_by' => $user->id,
+        ]);
+        $folder = Folder::query()->create([
+            'name' => 'Carpeta Test',
+            'description' => null,
+            'version' => '1.0',
+            'fields' => ['version' => '1.0', 'fields' => []],
+            'is_default' => false,
+            'created_by' => $user->id,
+        ]);
+        $plan = Plan::query()->create([
+            'nombre' => 'Plan Test',
+            'descripcion' => null,
+            'valor_ingreso' => 100,
+            'fecha_cierre' => null,
+            'created_by' => $user->id,
+        ]);
+        $titular = Titular::query()->create([
+            'nombre' => 'Titular Update Aporte Test',
+            'access_code' => $authService->generateAccessCode(),
+            'unique_url' => $authService->generateUniqueUrl(),
+            'project_id' => $project->id,
+            'folder_id' => $folder->id,
+            'folder_version' => $folder->version,
+            'data' => [],
+            'consents_accepted' => [],
+            'completion_percentage' => 0,
+            'status' => Titular::STATUS_EN_PROCESO,
+            'is_active' => true,
+            'created_by' => $user->id,
+        ]);
+        $aporte = Aporte::query()->create([
+            'titular_id' => $titular->id,
+            'valor' => 200,
+            'estado' => Aporte::ESTADO_PENDIENTE,
+        ]);
+
+        $response = $this->actingAs($user)->put(route('titulares.aportes.update', [$titular, $aporte]), [
+            'plan_id' => $plan->id,
+            'estado' => 'aprobado',
+        ]);
+
+        $response->assertRedirect(route('titulares.show', $titular));
+        $response->assertSessionHas('success');
+        $aporte->refresh();
+        $this->assertSame('aprobado', $aporte->estado);
+        $this->assertSame($plan->id, $aporte->plan_id);
+        $this->assertNotNull($aporte->approved_at);
+        $this->assertSame($user->id, $aporte->approved_by);
     }
 }

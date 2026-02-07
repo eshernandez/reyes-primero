@@ -1,10 +1,18 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { FileText, Key, Link2, MessageSquare, Send } from 'lucide-react';
+import { Download, FileText, Key, Link2, MessageSquare, Plus, Send } from 'lucide-react';
 import { useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import {
     Sheet,
@@ -22,6 +30,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import InputError from '@/components/input-error';
 import { dashboard } from '@/routes';
 import { edit, index as titularesIndex } from '@/routes/titulares';
 import type { BreadcrumbItem } from '@/types';
@@ -35,11 +45,14 @@ type Note = {
     author: { id: number; name: string };
 };
 
+type Plan = { id: number; nombre: string; valor_ingreso: string; fecha_cierre: string | null };
 type Aporte = {
     id: number;
     valor: string;
     estado: string;
     created_at: string;
+    soporte_path?: string | null;
+    approved_at?: string | null;
     plan: { id: number; nombre: string } | null;
     approved_by_user: { id: number; name: string } | null;
 };
@@ -68,6 +81,7 @@ type Props = {
     statusLabels?: Record<string, string>;
     aportes?: Aporte[];
     aporteEstadoLabels?: Record<string, string>;
+    plans?: Plan[];
 };
 
 const breadcrumbs = (titular: Titular): BreadcrumbItem[] => [
@@ -88,16 +102,28 @@ const statusVariant: Record<string, 'default' | 'secondary' | 'destructive' | 'o
     revision: 'secondary',
 };
 
-export default function TitularShow({ titular, sections, statusLabels = {}, aportes = [], aporteEstadoLabels = {} }: Props) {
+export default function TitularShow({ titular, sections, statusLabels = {}, aportes = [], aporteEstadoLabels = {}, plans = [] }: Props) {
     const accessUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/titular/access/${titular.unique_url}`;
     const data = titular.data ?? {};
     const notes = titular.notes ?? [];
     const status = titular.status ?? 'en_proceso';
     const [notesOpen, setNotesOpen] = useState(false);
+    const [gestionarAporte, setGestionarAporte] = useState<Aporte | null>(null);
+    const [addAporteOpen, setAddAporteOpen] = useState(false);
 
     const noteForm = useForm({
         body: '',
         mark_as_returned: false,
+    });
+
+    const addAporteForm = useForm({
+        valor: '',
+        soporte: null as File | null,
+    });
+
+    const gestionarForm = useForm({
+        plan_id: '' as number | '',
+        estado: 'aprobado' as 'aprobado' | 'rechazado',
     });
 
     const handleAddNote = (e: React.FormEvent) => {
@@ -250,57 +276,77 @@ export default function TitularShow({ titular, sections, statusLabels = {}, apor
                     <CardHeader>
                         <CardTitle>Aportes del titular</CardTitle>
                         <CardDescription>
-                            Aportes registrados por el titular. Puede ver el detalle y aprobar o rechazar desde cada fila.
+                            Aportes registrados por el titular. Gestione cada uno en esta misma página.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
                         {!aportes || aportes.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">Este titular aún no tiene aportes registrados.</p>
+                            <div className="flex flex-col items-start gap-3">
+                                <p className="text-sm text-muted-foreground">Este titular aún no tiene aportes registrados.</p>
+                                <Button type="button" variant="outline" size="sm" onClick={() => setAddAporteOpen(true)}>
+                                    <Plus className="mr-2 size-4" />
+                                    Agregar aporte
+                                </Button>
+                            </div>
                         ) : (
-                            <div className="rounded-md border">
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className="border-b bg-muted/50">
-                                            <th className="p-3 text-left font-medium">Valor</th>
-                                            <th className="p-3 text-left font-medium">Estado</th>
-                                            <th className="p-3 text-left font-medium">Plan</th>
-                                            <th className="p-3 text-left font-medium">Fecha</th>
-                                            <th className="p-3 text-right font-medium">Acción</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {aportes.map((aporte) => (
-                                            <tr key={aporte.id} className="border-b last:border-0">
-                                                <td className="p-3">{aporte.valor}</td>
-                                                <td className="p-3">
-                                                    <Badge
-                                                        variant={
-                                                            aporte.estado === 'aprobado'
-                                                                ? 'default'
-                                                                : aporte.estado === 'rechazado'
-                                                                  ? 'destructive'
-                                                                  : 'secondary'
-                                                        }
-                                                    >
-                                                        {aporteEstadoLabels[aporte.estado] ?? aporte.estado}
-                                                    </Badge>
-                                                </td>
-                                                <td className="p-3">{aporte.plan?.nombre ?? '—'}</td>
-                                                <td className="p-3 text-muted-foreground">
-                                                    {new Date(aporte.created_at).toLocaleDateString()}
-                                                </td>
-                                                <td className="p-3 text-right">
-                                                    <Button variant="ghost" size="sm" asChild>
-                                                        <Link href={`/aportes/${aporte.id}`}>
+                            <div className="space-y-3">
+                                <div className="rounded-md border">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="border-b bg-muted/50">
+                                                <th className="p-3 text-left font-medium">Valor</th>
+                                                <th className="p-3 text-left font-medium">Estado</th>
+                                                <th className="p-3 text-left font-medium">Plan</th>
+                                                <th className="p-3 text-left font-medium">Fecha</th>
+                                                <th className="p-3 text-right font-medium">Acción</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {aportes.map((aporte) => (
+                                                <tr key={aporte.id} className="border-b last:border-0">
+                                                    <td className="p-3">{aporte.valor}</td>
+                                                    <td className="p-3">
+                                                        <Badge
+                                                            variant={
+                                                                aporte.estado === 'aprobado'
+                                                                    ? 'default'
+                                                                    : aporte.estado === 'rechazado'
+                                                                      ? 'destructive'
+                                                                      : 'secondary'
+                                                            }
+                                                        >
+                                                            {aporteEstadoLabels[aporte.estado] ?? aporte.estado}
+                                                        </Badge>
+                                                    </td>
+                                                    <td className="p-3">{aporte.plan?.nombre ?? '—'}</td>
+                                                    <td className="p-3 text-muted-foreground">
+                                                        {new Date(aporte.created_at).toLocaleDateString()}
+                                                    </td>
+                                                    <td className="p-3 text-right">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                setGestionarAporte(aporte);
+                                                                gestionarForm.setData({
+                                                                    plan_id: aporte.plan?.id ?? '',
+                                                                    estado: (aporte.estado === 'aprobado' || aporte.estado === 'rechazado' ? aporte.estado : 'aprobado') as 'aprobado' | 'rechazado',
+                                                                });
+                                                            }}
+                                                        >
                                                             <FileText className="mr-1 size-4" />
                                                             Ver / Gestionar
-                                                        </Link>
-                                                    </Button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                                        </Button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <Button type="button" variant="outline" size="sm" onClick={() => setAddAporteOpen(true)}>
+                                    <Plus className="mr-2 size-4" />
+                                    Agregar aporte
+                                </Button>
                             </div>
                         )}
                     </CardContent>
@@ -356,6 +402,197 @@ export default function TitularShow({ titular, sections, statusLabels = {}, apor
                     </Card>
                 )}
             </div>
+
+            {/* Modal: Gestionar aporte */}
+            <Dialog open={!!gestionarAporte} onOpenChange={(open) => !open && setGestionarAporte(null)}>
+                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Aporte {gestionarAporte ? `#${gestionarAporte.id}` : ''}</DialogTitle>
+                        <DialogDescription>Detalle y aprobación del aporte</DialogDescription>
+                    </DialogHeader>
+                    {gestionarAporte && (
+                        <div className="space-y-4">
+                            <div className="space-y-2 text-sm">
+                                <p>
+                                    <span className="font-medium text-muted-foreground">Valor:</span>{' '}
+                                    {gestionarAporte.valor}
+                                </p>
+                                <p>
+                                    <span className="font-medium text-muted-foreground">Estado:</span>{' '}
+                                    <Badge
+                                        variant={
+                                            gestionarAporte.estado === 'aprobado'
+                                                ? 'default'
+                                                : gestionarAporte.estado === 'rechazado'
+                                                  ? 'destructive'
+                                                  : 'secondary'
+                                        }
+                                    >
+                                        {aporteEstadoLabels[gestionarAporte.estado] ?? gestionarAporte.estado}
+                                    </Badge>
+                                </p>
+                                {gestionarAporte.plan && (
+                                    <p>
+                                        <span className="font-medium text-muted-foreground">Plan:</span>{' '}
+                                        {gestionarAporte.plan.nombre}
+                                    </p>
+                                )}
+                                {gestionarAporte.approved_at && gestionarAporte.approved_by_user && (
+                                    <p className="text-muted-foreground">
+                                        Aprobado por {gestionarAporte.approved_by_user.name} el{' '}
+                                        {new Date(gestionarAporte.approved_at).toLocaleString()}
+                                    </p>
+                                )}
+                                <p className="text-muted-foreground">
+                                    Registrado: {new Date(gestionarAporte.created_at).toLocaleString()}
+                                </p>
+                                {gestionarAporte.soporte_path && (
+                                    <Button variant="outline" size="sm" asChild>
+                                        <a
+                                            href={`/aportes/${gestionarAporte.id}/soporte`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
+                                            <Download className="mr-2 size-4" />
+                                            Ver soporte
+                                        </a>
+                                    </Button>
+                                )}
+                            </div>
+                            {gestionarAporte.estado === 'pendiente' && plans.length > 0 && (
+                                <form
+                                    onSubmit={(e) => {
+                                        e.preventDefault();
+                                        gestionarForm.put(
+                                            `/titulares/${titular.id}/aportes/${gestionarAporte.id}`,
+                                            { onSuccess: () => setGestionarAporte(null) },
+                                        );
+                                    }}
+                                    className="space-y-4"
+                                >
+                                    <div className="space-y-2">
+                                        <Label>Plan (obligatorio si aprueba)</Label>
+                                        <Select
+                                            value={gestionarForm.data.plan_id ? String(gestionarForm.data.plan_id) : 'all'}
+                                            onValueChange={(v) =>
+                                                gestionarForm.setData('plan_id', v === 'all' ? '' : Number(v))
+                                            }
+                                            required={gestionarForm.data.estado === 'aprobado'}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Seleccione un plan" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {plans.map((p) => (
+                                                    <SelectItem key={p.id} value={String(p.id)}>
+                                                        {p.nombre} (valor: {p.valor_ingreso}
+                                                        {p.fecha_cierre ? `, cierre: ${p.fecha_cierre}` : ''})
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <InputError message={gestionarForm.errors.plan_id} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Acción</Label>
+                                        <Select
+                                            value={gestionarForm.data.estado}
+                                            onValueChange={(v) =>
+                                                gestionarForm.setData('estado', v as 'aprobado' | 'rechazado')
+                                            }
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="aprobado">Aprobado</SelectItem>
+                                                <SelectItem value="rechazado">Rechazado</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <InputError message={gestionarForm.errors.estado} />
+                                    </div>
+                                    <DialogFooter>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => setGestionarAporte(null)}
+                                        >
+                                            Cerrar
+                                        </Button>
+                                        <Button type="submit" disabled={gestionarForm.processing}>
+                                            Guardar
+                                        </Button>
+                                    </DialogFooter>
+                                </form>
+                            )}
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal: Agregar aporte */}
+            <Dialog open={addAporteOpen} onOpenChange={setAddAporteOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Agregar aporte</DialogTitle>
+                        <DialogDescription>
+                            Registre un nuevo aporte para este titular. El soporte es opcional.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            addAporteForm.post(`/titulares/${titular.id}/aportes`, {
+                                forceFormData: true,
+                                onSuccess: () => {
+                                    setAddAporteOpen(false);
+                                    addAporteForm.reset();
+                                },
+                            });
+                        }}
+                        className="space-y-4"
+                    >
+                        <div className="space-y-2">
+                            <Label htmlFor="aporte-valor">Valor (obligatorio)</Label>
+                            <Input
+                                id="aporte-valor"
+                                type="number"
+                                step="0.01"
+                                min={0}
+                                value={addAporteForm.data.valor}
+                                onChange={(e) => addAporteForm.setData('valor', e.target.value)}
+                                required
+                            />
+                            <InputError message={addAporteForm.errors.valor} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="aporte-soporte">Soporte (opcional, PDF o imagen)</Label>
+                            <input
+                                id="aporte-soporte"
+                                type="file"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                onChange={(e) =>
+                                    addAporteForm.setData('soporte', e.target.files?.[0] ?? null)
+                                }
+                                className="flex w-full text-sm file:mr-2 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1 file:text-primary-foreground"
+                            />
+                            <InputError message={addAporteForm.errors.soporte} />
+                        </div>
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setAddAporteOpen(false)}
+                            >
+                                Cancelar
+                            </Button>
+                            <Button type="submit" disabled={addAporteForm.processing}>
+                                Agregar aporte
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
 
             {/* Floating notes button and panel */}
             <Sheet open={notesOpen} onOpenChange={setNotesOpen}>
