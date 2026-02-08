@@ -7,8 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthLayout from '@/layouts/auth-layout';
-import { store } from '@/routes/login';
 import { request } from '@/routes/password';
+
+/** Ruta relativa para que el POST vaya al mismo origen que la página (evita 419 por localhost vs 127.0.0.1). */
+const loginStoreForm = () => ({ action: '/login', method: 'post' as const });
 
 type Props = {
     status?: string;
@@ -28,7 +30,7 @@ export default function Login({
             <Head title="Iniciar sesión" />
 
             <Form
-                {...store.form()}
+                {...loginStoreForm()}
                 resetOnSuccess={['password']}
                 className="flex flex-col gap-6"
             >
