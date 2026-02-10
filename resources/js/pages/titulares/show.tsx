@@ -71,6 +71,7 @@ type Titular = {
     status: string;
     is_active: boolean;
     last_access: string | null;
+    invitation_sent_at: string | null;
     data?: Record<string, unknown>;
     project: { id: number; title: string };
     folder: { id: number; name: string; version: string };
@@ -241,6 +242,23 @@ export default function TitularShow({ titular, sections, statusLabels = {}, apor
                                 <Link2 className="mr-2 size-4" />
                                 Generar nueva URL
                             </Button>
+                        </div>
+                        <div className="mt-4 flex flex-wrap gap-2 border-t pt-4">
+                            <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => {
+                                    router.post(`/titulares/${titular.id}/send-invitation`, {}, { preserveScroll: true });
+                                }}
+                            >
+                                <Send className="mr-2 size-4" />
+                                {titular.invitation_sent_at ? 'Reenviar invitación por correo' : 'Enviar invitación por correo'}
+                            </Button>
+                            {titular.invitation_sent_at && (
+                                <span className="text-muted-foreground text-sm">
+                                    Último envío: {new Date(titular.invitation_sent_at).toLocaleString()}
+                                </span>
+                            )}
                         </div>
                     </CardContent>
                 </Card>

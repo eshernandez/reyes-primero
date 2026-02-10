@@ -42,6 +42,7 @@ class Titular extends Model implements AuthenticatableContract
         'status',
         'is_active',
         'last_access',
+        'invitation_sent_at',
         'created_by',
     ];
 
@@ -55,6 +56,7 @@ class Titular extends Model implements AuthenticatableContract
             'consents_accepted' => 'array',
             'is_active' => 'boolean',
             'last_access' => 'datetime',
+            'invitation_sent_at' => 'datetime',
         ];
     }
 
@@ -78,7 +80,7 @@ class Titular extends Model implements AuthenticatableContract
      */
     protected static function auditableAttributes(): array
     {
-        return ['nombre', 'project_id', 'folder_id', 'folder_version', 'data', 'consents_accepted', 'completion_percentage', 'is_active', 'last_access', 'created_by'];
+        return ['nombre', 'project_id', 'folder_id', 'folder_version', 'data', 'consents_accepted', 'completion_percentage', 'is_active', 'last_access', 'invitation_sent_at', 'created_by'];
     }
 
     /**
@@ -119,6 +121,22 @@ class Titular extends Model implements AuthenticatableContract
     public function aportes(): HasMany
     {
         return $this->hasMany(Aporte::class);
+    }
+
+    /**
+     * @return HasMany<Communication, $this>
+     */
+    public function communications(): HasMany
+    {
+        return $this->hasMany(Communication::class);
+    }
+
+    public function getEmailFromData(): ?string
+    {
+        $data = $this->data ?? [];
+        $email = $data['correo_electronico'] ?? $data['email'] ?? $data['correo'] ?? null;
+
+        return $email ? (string) $email : null;
     }
 
     /**

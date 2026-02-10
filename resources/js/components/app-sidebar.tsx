@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Banknote, FileBarChart, FileCheck, FolderOpen, FolderTree, LayoutGrid, PiggyBank, UserCog, Users } from 'lucide-react';
+import { Banknote, FileBarChart, FileCheck, FolderOpen, FolderTree, LayoutGrid, Mail, PiggyBank, UserCog, Users } from 'lucide-react';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -41,6 +41,7 @@ function useMainNavItems(): NavItem[] {
 
     if (role === 'super_admin' || role === 'admin' || role === 'auxiliar') {
         items.push({ title: 'Titulares', href: titularesIndex().url, icon: Users });
+        items.push({ title: 'Comunicaciones', href: '/communications', icon: Mail });
     }
 
     return items;

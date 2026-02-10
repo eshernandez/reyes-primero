@@ -13,6 +13,8 @@ use App\Http\Controllers\Titular\AccessController;
 use App\Http\Controllers\Titular\AporteController as TitularAporteController;
 use App\Http\Controllers\Titular\DashboardController as TitularDashboardController;
 use App\Http\Controllers\Titular\LoginController;
+use App\Http\Controllers\CommunicationController;
+use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\TitularImportController;
 use App\Http\Controllers\UserController;
 use App\Models\Aporte;
@@ -56,6 +58,11 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('titulares/import/template', [TitularImportController::class, 'template'])->name('titulares.import.template');
     Route::get('titulares/import/create', [TitularImportController::class, 'create'])->name('titulares.import.create');
     Route::post('titulares/import', [TitularImportController::class, 'store'])->name('titulares.import.store');
+    Route::post('titulares/{titulare}/send-invitation', [InvitationController::class, 'sendInvitation'])->name('titulares.send-invitation');
+    Route::post('titulares/send-invitations', [InvitationController::class, 'sendBulkInvitations'])->name('titulares.send-invitations');
+    Route::get('communications', [CommunicationController::class, 'index'])->name('communications.index');
+    Route::post('communications', [CommunicationController::class, 'store'])->name('communications.store');
+    Route::post('communications/{communication}/resend', [CommunicationController::class, 'resend'])->name('communications.resend');
     Route::resource('titulares', \App\Http\Controllers\TitularController::class);
 });
 

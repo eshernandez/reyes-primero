@@ -1,5 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Eye, FileSpreadsheet, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Eye, FileSpreadsheet, Mail, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -18,6 +19,15 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { dashboard } from '@/routes';
 import { create, destroy, edit, index as titularesIndex, show } from '@/routes/titulares';
 import type { BreadcrumbItem } from '@/types';
@@ -30,6 +40,7 @@ type Titular = {
     status: string;
     is_active: boolean;
     last_access: string | null;
+    invitation_sent_at: string | null;
     data?: Record<string, unknown>;
     project: { id: number; title: string };
     folder: { id: number; name: string; version: string };
@@ -71,8 +82,44 @@ const COMPLETITUD_OPTIONS = [
 ];
 
 export default function TitularesIndex({ titulares, projectsForFilter, foldersForFilter, filters, statusLabels }: Props) {
+    const [inviteOpen, setInviteOpen] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
+    const [includeAlreadyInvited, setIncludeAlreadyInvited] = useState(false);
+    const [inviting, setInviting] = useState(false);
+
     const applyFilters = (newFilters: Filters) => {
         router.get(titularesIndex().url, newFilters, { preserveState: true });
+    };
+
+    const openInviteModal = () => {
+        setSelectedIds(titulares.data.map((t) => t.id));
+        setIncludeAlreadyInvited(false);
+        setInviteOpen(true);
+    };
+
+    const toggleSelect = (id: number) => {
+        setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    };
+
+    const selectAllPage = () => {
+        setSelectedIds(titulares.data.map((t) => t.id));
+    };
+
+    const deselectAll = () => {
+        setSelectedIds([]);
+    };
+
+    const submitInvitations = () => {
+        if (selectedIds.length === 0) return;
+        setInviting(true);
+        router.post('/titulares/send-invitations', {
+            titular_ids: selectedIds,
+            include_already_invited: includeAlreadyInvited,
+        }, {
+            preserveScroll: true,
+            onFinish: () => setInviting(false),
+            onSuccess: () => setInviteOpen(false),
+        });
     };
 
     return (
@@ -82,6 +129,10 @@ export default function TitularesIndex({ titulares, projectsForFilter, foldersFo
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <h1 className="text-2xl font-semibold">Titulares</h1>
                     <div className="flex gap-2">
+                        <Button variant="outline" onClick={openInviteModal} type="button">
+                            <Mail className="mr-2 size-4" />
+                            Invitar
+                        </Button>
                         <Button variant="outline" asChild>
                             <Link href="/titulares/import/create">
                                 <FileSpreadsheet className="mr-2 size-4" />
@@ -366,6 +417,61 @@ export default function TitularesIndex({ titulares, projectsForFilter, foldersFo
                         <Pagination links={titulares.links} />
                     </div>
                 )}
+
+                <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+                    <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle>Invitar titulares por correo</DialogTitle>
+                            <DialogDescription>
+                                Seleccione los titulares a los que desea enviar la invitación a su carpeta privada. Solo se enviará a quienes tengan correo en su carpeta.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-2">
+                            <div className="flex gap-2">
+                                <Button type="button" variant="outline" size="sm" onClick={selectAllPage}>
+                                    Seleccionar todos (página actual)
+                                </Button>
+                                <Button type="button" variant="outline" size="sm" onClick={deselectAll}>
+                                    Quitar selección
+                                </Button>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Checkbox
+                                    id="include-already"
+                                    checked={includeAlreadyInvited}
+                                    onCheckedChange={(c) => setIncludeAlreadyInvited(!!c)}
+                                />
+                                <Label htmlFor="include-already" className="text-sm font-normal cursor-pointer">
+                                    Incluir ya invitados (reenviar invitación)
+                                </Label>
+                            </div>
+                            <div className="max-h-[240px] overflow-y-auto rounded border p-2 space-y-2">
+                                {titulares.data.map((t) => (
+                                    <div key={t.id} className="flex items-center space-x-2">
+                                        <Checkbox
+                                            id={`invite-${t.id}`}
+                                            checked={selectedIds.includes(t.id)}
+                                            onCheckedChange={() => toggleSelect(t.id)}
+                                        />
+                                        <Label htmlFor={`invite-${t.id}`} className="flex-1 cursor-pointer text-sm font-normal truncate">
+                                            {t.nombre}
+                                            {t.data?.correo_electronico ? '' : ' (sin correo)'}
+                                            {t.invitation_sent_at ? ' · Ya invitado' : ''}
+                                        </Label>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setInviteOpen(false)}>
+                                Cancelar
+                            </Button>
+                            <Button type="button" onClick={submitInvitations} disabled={selectedIds.length === 0 || inviting}>
+                                {inviting ? 'Enviando…' : `Enviar a ${selectedIds.length} titular(es)`}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         </AppLayout>
     );
