@@ -14,10 +14,14 @@ class DatosReyesMamaSeeder extends Seeder
     private const DIR = 'datos-reyes-mama';
 
     /**
-     * Carga los 4 Excel de datos-reyes-mama: crea proyectos por archivo,
-     * titulares, planes (por nombre de programa) y aportes.
-     * Cuando una fila no trae nombre pero sí datos de participación,
-     * se asocia al titular de la fila anterior.
+     * Carga los 5 Excel de datos-reyes-mama en un único proyecto.
+     *
+     * Orden de importación:
+     * 1. dbcompleta → base de 802 titulares con datos completos + aportes
+     * 2. Listados de líderes → titulares nuevos + aportes (deduplicando por doc/email)
+     * 3. Nora Duarte → titulares nuevos sin aportes (deduplicando)
+     *
+     * Todos los titulares se asocian al Folder con id=1 (carpeta por defecto).
      */
     public function run(): void
     {
@@ -36,14 +40,35 @@ class DatosReyesMamaSeeder extends Seeder
             return;
         }
 
-        $folder = Folder::query()->where('is_default', true)->first();
+        $folder = Folder::query()->find(1);
         if (! $folder) {
-            $this->command->warn('No hay carpeta por defecto. Ejecuta antes ReyesPrimeroSeeder.');
+            $folder = Folder::query()->where('is_default', true)->first();
+        }
+        if (! $folder) {
+            $this->command->warn('No hay carpeta con id=1 ni carpeta por defecto. Ejecuta antes ReyesPrimeroSeeder.');
 
             return;
         }
 
+        // Proyecto único para todos los datos
+        $project = Project::query()->firstOrCreate(
+            ['title' => 'Proyecto Reyes'],
+            [
+                'description' => 'Proyecto consolidado con todos los datos de titulares importados desde Excel',
+                'valor_ingreso' => 0,
+                'fecha_inicio' => now()->toDateString(),
+                'fecha_fin' => null,
+                'status' => Project::STATUS_ACTIVO,
+                'created_by' => $user->id,
+            ]
+        );
+
+        // Inicializar índices de deduplicación (vacíos en migrate:fresh)
+        DatosReyesMamaImport::initDeduplicationIndex();
+
+        // Orden de importación: dbcompleta PRIMERO (es la base maestra)
         $files = [
+            'dbcompleta (3).xlsx' => 'DB Completa',
             'LISTADO PROYECTO REYES LIDER OLGA EMILCE ROJAS, COEQUIPERA CARMEN ALICIA GARCIA CUATIN copia.xlsx' => 'Proyecto Reyes - Olga Emilce Rojas',
             'LISTADO PRYECTO REYES - LIDER GLORIA NELLY PEREZ DE SUPANTEVE copia.xlsx' => 'Proyecto Reyes - Gloria Nelly Pérez',
             'LISTADO PRYECTO REYES DE ALBA LILIA GOMEZ - copia (2).xlsx' => 'Proyecto Reyes - Alba Lilia Gómez',
@@ -51,30 +76,22 @@ class DatosReyesMamaSeeder extends Seeder
         ];
 
         $totalTitulares = 0;
+        $totalSkipped = 0;
         $totalAportes = 0;
         $totalPlans = 0;
 
-        foreach ($files as $filename => $projectTitle) {
+        foreach ($files as $filename => $label) {
             $path = $basePath.DIRECTORY_SEPARATOR.$filename;
 
             if (! is_file($path)) {
                 $this->command->warn("Archivo no encontrado: {$filename}");
+
                 continue;
             }
 
-            $project = Project::query()->firstOrCreate(
-                ['title' => $projectTitle],
-                [
-                    'description' => 'Importado desde '.$filename,
-                    'valor_ingreso' => 0,
-                    'fecha_inicio' => now()->toDateString(),
-                    'fecha_fin' => null,
-                    'status' => Project::STATUS_ACTIVO,
-                    'created_by' => $user->id,
-                ]
-            );
+            $this->command->info("Importando: {$label}...");
 
-            $import = new DatosReyesMamaImport($path, $projectTitle, $project, $folder, $user);
+            $import = new DatosReyesMamaImport($path, $label, $project, $folder, $user);
 
             try {
                 Excel::import($import, $path);
@@ -88,22 +105,41 @@ class DatosReyesMamaSeeder extends Seeder
                         $this->command->line('  ... y '.(count($import->errors) - 5).' más.');
                     }
                 }
+
                 continue;
             }
 
             $totalTitulares += $import->titularesCreated;
+            $totalSkipped += $import->titularesSkipped;
             $totalAportes += $import->aportesCreated;
             $totalPlans += $import->plansCreated;
 
-            $this->command->info("{$filename}: {$import->titularesCreated} titulares, {$import->aportesCreated} aportes, {$import->plansCreated} planes nuevos.");
+            $this->command->info(
+                "  ✓ {$import->titularesCreated} titulares creados, ".
+                "{$import->titularesSkipped} duplicados omitidos, ".
+                "{$import->aportesCreated} aportes, ".
+                "{$import->plansCreated} planes nuevos."
+            );
 
             if (! empty($import->errors)) {
-                foreach (array_slice($import->errors, 0, 3) as $err) {
-                    $this->command->warn("  Fila {$err['row']}: {$err['message']}");
+                $this->command->warn('  ⚠ '.count($import->errors).' errores:');
+                foreach (array_slice($import->errors, 0, 5) as $err) {
+                    $this->command->warn("    Fila {$err['row']}: {$err['message']}");
+                }
+                if (count($import->errors) > 5) {
+                    $this->command->line('    ... y '.(count($import->errors) - 5).' más.');
                 }
             }
         }
 
-        $this->command->info("Total: {$totalTitulares} titulares, {$totalAportes} aportes, {$totalPlans} planes nuevos.");
+        $this->command->newLine();
+        $this->command->info('═══════════════════════════════════════════');
+        $this->command->info("  Total titulares creados:   {$totalTitulares}");
+        $this->command->info("  Total duplicados omitidos: {$totalSkipped}");
+        $this->command->info("  Total aportes creados:     {$totalAportes}");
+        $this->command->info("  Total planes creados:      {$totalPlans}");
+        $this->command->info("  Folder asignado:           #{$folder->id} - {$folder->name}");
+        $this->command->info("  Proyecto:                  #{$project->id} - {$project->title}");
+        $this->command->info('═══════════════════════════════════════════');
     }
 }

@@ -5,9 +5,7 @@ namespace Database\Seeders;
 use App\Models\Consent;
 use App\Models\Folder;
 use App\Models\Project;
-use App\Models\Titular;
 use App\Models\User;
-use App\Services\TitularAuthService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -18,8 +16,6 @@ class ReyesPrimeroSeeder extends Seeder
      */
     public function run(): void
     {
-        $authService = new TitularAuthService;
-
         $superAdmin = User::query()->create([
             'name' => 'Super Administrador',
             'email' => 'super@reyesprimero.com',
@@ -79,25 +75,7 @@ class ReyesPrimeroSeeder extends Seeder
         $folder->consents()->attach($consent->id, ['order' => 1]);
         $project->auxiliares()->attach($auxiliar->id);
 
-        $accessCode = $authService->generateAccessCode();
-        $uniqueUrl = $authService->generateUniqueUrl();
-
-        Titular::query()->create([
-            'nombre' => 'Titular de Prueba',
-            'access_code' => $accessCode,
-            'unique_url' => $uniqueUrl,
-            'project_id' => $project->id,
-            'folder_id' => $folder->id,
-            'folder_version' => '1.0',
-            'data' => [],
-            'consents_accepted' => [],
-            'completion_percentage' => 0,
-            'is_active' => true,
-            'created_by' => $superAdmin->id,
-        ]);
-
-        $this->command->info('Código de acceso titular de prueba: '.$accessCode);
-        $this->command->info('URL única: /titular/access/'.$uniqueUrl);
+        $this->command->info('Base creada: usuarios, proyecto, carpeta y consentimiento.');
     }
 
     /**
