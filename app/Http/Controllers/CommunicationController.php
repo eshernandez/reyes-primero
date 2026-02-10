@@ -60,7 +60,7 @@ class CommunicationController extends Controller
         return Inertia::render('communications/index', [
             'communications' => $communications,
             'communicationDetail' => $communicationDetail,
-            'filters' => $request->only(['type', 'status', 'search']),
+            'filters' => $request->only(['type', 'status', 'search', 'communication_id']),
             'typeLabels' => [
                 Communication::TYPE_INVITATION => 'Invitación a carpeta',
                 Communication::TYPE_CUSTOM => 'Comunicación',

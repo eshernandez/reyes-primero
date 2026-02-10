@@ -1,6 +1,7 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import { Eye, Mail, RefreshCw, Send } from 'lucide-react';
 import { useState } from 'react';
+import { useDebouncedFilterFields } from '@/hooks/use-debounced-filter-fields';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,7 +46,7 @@ type Communication = {
 type Props = {
     communications: { data: Communication[]; links: PaginationLink[]; current_page: number; last_page: number };
     communicationDetail: Communication | null;
-    filters: { type?: string; status?: string; search?: string };
+    filters: { type?: string; status?: string; search?: string; communication_id?: string };
     typeLabels: Record<string, string>;
     statusLabels: Record<string, string>;
 };
@@ -70,16 +71,20 @@ export default function CommunicationsIndex({
         body: '',
     });
 
-    const applyFilters = (newFilters: Record<string, string | undefined>) => {
-        router.get('/communications', newFilters, { preserveState: true });
-    };
+    type CommsFilters = { type?: string; status?: string; search?: string; communication_id?: string };
+    const { fieldValues, setFieldValue, applyFilters } = useDebouncedFilterFields<CommsFilters>(
+        ['search'],
+        filters as CommsFilters,
+        (merged) => router.get('/communications', merged, { preserveState: true }),
+        { delayMs: 750 }
+    );
 
     const openDetail = (id: number) => {
-        router.get('/communications', { ...filters, communication_id: id }, { preserveState: true });
+        applyFilters({ communication_id: String(id) });
     };
 
     const closeDetail = () => {
-        router.get('/communications', filters, { preserveState: true });
+        applyFilters({ communication_id: undefined });
     };
 
     const handleResend = (id: number) => {
@@ -176,16 +181,14 @@ export default function CommunicationsIndex({
                         <div className="flex flex-wrap gap-2">
                             <Input
                                 placeholder="Buscar por correo o asunto..."
-                                value={filters.search ?? ''}
-                                onChange={(e) =>
-                                    applyFilters({ ...filters, search: e.target.value || undefined })
-                                }
+                                value={fieldValues.search ?? ''}
+                                onChange={(e) => setFieldValue('search', e.target.value)}
                                 className="max-w-[240px]"
                             />
                             <Select
                                 value={filters.type ?? 'all'}
                                 onValueChange={(v) =>
-                                    applyFilters({ ...filters, type: v === 'all' ? undefined : v })
+                                    applyFilters({ type: v === 'all' ? undefined : v })
                                 }
                             >
                                 <SelectTrigger className="w-[200px]">
@@ -203,7 +206,7 @@ export default function CommunicationsIndex({
                             <Select
                                 value={filters.status ?? 'all'}
                                 onValueChange={(v) =>
-                                    applyFilters({ ...filters, status: v === 'all' ? undefined : v })
+                                    applyFilters({ status: v === 'all' ? undefined : v })
                                 }
                             >
                                 <SelectTrigger className="w-[180px]">

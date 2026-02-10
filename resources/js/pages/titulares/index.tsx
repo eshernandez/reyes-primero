@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { Eye, FileSpreadsheet, Mail, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { useDebouncedFilterFields } from '@/hooks/use-debounced-filter-fields';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -87,9 +88,12 @@ export default function TitularesIndex({ titulares, projectsForFilter, foldersFo
     const [includeAlreadyInvited, setIncludeAlreadyInvited] = useState(false);
     const [inviting, setInviting] = useState(false);
 
-    const applyFilters = (newFilters: Filters) => {
-        router.get(titularesIndex().url, newFilters, { preserveState: true });
-    };
+    const { fieldValues, setFieldValue, applyFilters } = useDebouncedFilterFields<Filters>(
+        ['search', 'telefono'],
+        filters,
+        (merged) => router.get(titularesIndex().url, merged, { preserveState: true }),
+        { delayMs: 750 }
+    );
 
     const openInviteModal = () => {
         setSelectedIds(titulares.data.map((t) => t.id));
@@ -155,8 +159,8 @@ export default function TitularesIndex({ titulares, projectsForFilter, foldersFo
                                 <Label className="text-xs">Buscar por nombre</Label>
                                 <Input
                                     placeholder="Nombre..."
-                                    value={filters.search ?? ''}
-                                    onChange={(e) => applyFilters({ ...filters, search: e.target.value || undefined })}
+                                    value={fieldValues.search ?? ''}
+                                    onChange={(e) => setFieldValue('search', e.target.value)}
                                     className="mt-1"
                                 />
                             </div>
@@ -164,8 +168,8 @@ export default function TitularesIndex({ titulares, projectsForFilter, foldersFo
                                 <Label className="text-xs">Teléfono</Label>
                                 <Input
                                     placeholder="Celular..."
-                                    value={filters.telefono ?? ''}
-                                    onChange={(e) => applyFilters({ ...filters, telefono: e.target.value || undefined })}
+                                    value={fieldValues.telefono ?? ''}
+                                    onChange={(e) => setFieldValue('telefono', e.target.value)}
                                     className="mt-1"
                                 />
                             </div>
@@ -174,7 +178,7 @@ export default function TitularesIndex({ titulares, projectsForFilter, foldersFo
                                 <Select
                                     value={filters.project_id ?? 'all'}
                                     onValueChange={(v) =>
-                                        applyFilters({ ...filters, project_id: v === 'all' ? undefined : v })
+                                        applyFilters({ project_id: v === 'all' ? undefined : v })
                                     }
                                 >
                                     <SelectTrigger className="mt-1">
@@ -195,7 +199,7 @@ export default function TitularesIndex({ titulares, projectsForFilter, foldersFo
                                 <Select
                                     value={filters.folder_id ?? 'all'}
                                     onValueChange={(v) =>
-                                        applyFilters({ ...filters, folder_id: v === 'all' ? undefined : v })
+                                        applyFilters({ folder_id: v === 'all' ? undefined : v })
                                     }
                                 >
                                     <SelectTrigger className="mt-1">
@@ -217,7 +221,6 @@ export default function TitularesIndex({ titulares, projectsForFilter, foldersFo
                                     value={filters.completitud ?? 'all'}
                                     onValueChange={(v) =>
                                         applyFilters({
-                                            ...filters,
                                             completitud: v === 'all' ? undefined : v,
                                             completitud_min: undefined,
                                             completitud_max: undefined,
@@ -248,7 +251,6 @@ export default function TitularesIndex({ titulares, projectsForFilter, foldersFo
                                         const v = e.target.value.replace(/\D/g, '');
                                         const n = v === '' ? undefined : Math.min(100, Math.max(0, parseInt(v, 10) || 0));
                                         applyFilters({
-                                            ...filters,
                                             completitud_min: n !== undefined ? String(n) : undefined,
                                             completitud: n !== undefined && n > 0 ? undefined : filters.completitud,
                                         });
@@ -268,7 +270,6 @@ export default function TitularesIndex({ titulares, projectsForFilter, foldersFo
                                         const v = e.target.value.replace(/\D/g, '');
                                         const n = v === '' ? undefined : Math.min(100, Math.max(0, parseInt(v, 10) || 0));
                                         applyFilters({
-                                            ...filters,
                                             completitud_max: n !== undefined ? String(n) : undefined,
                                             completitud: n !== undefined && n < 100 ? undefined : filters.completitud,
                                         });
@@ -281,7 +282,7 @@ export default function TitularesIndex({ titulares, projectsForFilter, foldersFo
                                 <Select
                                     value={filters.status ?? 'all'}
                                     onValueChange={(v) =>
-                                        applyFilters({ ...filters, status: v === 'all' ? undefined : v })
+                                        applyFilters({ status: v === 'all' ? undefined : v })
                                     }
                                 >
                                     <SelectTrigger className="mt-1">
